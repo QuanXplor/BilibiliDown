@@ -86,6 +86,9 @@ public class RepoUtil {
 	 * @return
 	 */
 	public static boolean isInRepo(String avRecord) {
+		if("ffmpeg".toUpperCase().startsWith(avRecord.toUpperCase())){
+			return false;
+		}
 		System.out.println("查询记录" + avRecord);
 		if (avRecord.contains("-800-") || avRecord.contains("-801-")) {
 			return false;

@@ -1,12 +1,6 @@
 package nicelee.bilibili.util;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.lang.ProcessBuilder.Redirect;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -18,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import nicelee.bilibili.model.ClipInfo;
+import nicelee.bilibili.model.VideoBaseInfo;
 import nicelee.bilibili.model.VideoInfo;
 import nicelee.bilibili.util.check.FlvMerger;
 import nicelee.bilibili.util.convert.ConvertUtil;
@@ -56,6 +51,57 @@ public class CmdUtil {
 			Logger.println(e.toString());
 			return false;
 		}
+	}
+
+	/**
+	 * 使用ffmpeg获取视频信息
+	 * @param filePath 文件路径
+	 * @return
+	 */
+	public static VideoBaseInfo getVideoInfo(String filePath) {
+		VideoBaseInfo videoBaseInfo=null;
+		try {
+			ProcessBuilder processBuilder = new ProcessBuilder(FFMPEG_PATH, "-i", filePath);
+			Process process = processBuilder.start();
+
+			// 读取输出信息
+			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+			String line;
+
+			// 分辨率和时长信息
+			String resolution = null;
+			String duration = null;
+
+			while ((line = reader.readLine()) != null) {
+				if (line.contains("Video:")) {
+					// 获取分辨率信息
+					int index = line.indexOf("Video:");
+					String tmp=line.substring(index);
+					tmp=tmp.replaceAll("\\(.+?\\)","");
+					tmp=tmp.replaceAll("\\[.+?\\]","");
+					String[] split = tmp.split(",");
+					resolution=split[2].trim();
+				} else if (line.contains("Duration:")) {
+					// 获取时长信息
+					int index = line.indexOf("Duration:");
+					int endIndex = line.indexOf(",", index);
+					duration = line.substring(index + 10, endIndex-3).trim();
+				}
+			}
+
+			videoBaseInfo=new VideoBaseInfo(resolution,duration);
+			// 关闭流
+			reader.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return videoBaseInfo;
+	}
+
+	public static void main(String[] args) {
+		FFMPEG_PATH="E:\\project\\source\\tmp\\BilibiliDown\\target\\ffmpeg.exe";
+		VideoBaseInfo videoInfo = getVideoInfo("E:\\project\\source\\tmp\\BilibiliDown\\target\\download\\珍藏-不到一千元打造属于年轻人的第一台NAS-p01-80.mp4");
+		System.out.println(videoInfo);
 	}
 
 	/**
@@ -295,11 +341,11 @@ public class CmdUtil {
 	// public static boolean doRenameAfterComplete = true;
 	final static Pattern suffixPattern = Pattern.compile("\\.[^.]+$");
 
-	public synchronized static void convertOrAppendCmdToRenameBat(final String avid_q, final String formattedTitle,
+	public synchronized static String convertOrAppendCmdToRenameBat(final String avid_q, final String formattedTitle,
 			int page) {
+		File originFile = getFileByAvQnP(avid_q, page);
 		try {
 			// 获取已完成文件
-			File originFile = getFileByAvQnP(avid_q, page);
 			String fName = originFile.getName();
 			Matcher suffixM = suffixPattern.matcher(fName);
 			suffixM.find();
@@ -311,6 +357,7 @@ public class CmdUtil {
 				if (!folder.exists())
 					folder.mkdirs();
 				originFile.renameTo(file);
+				return file.getAbsolutePath();
 			} else {
 				File f = new File(Global.savePath, "rename.bat");
 				boolean isExist = f.exists();
@@ -328,6 +375,7 @@ public class CmdUtil {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		return originFile.getAbsolutePath();
 	}
 
 	/**

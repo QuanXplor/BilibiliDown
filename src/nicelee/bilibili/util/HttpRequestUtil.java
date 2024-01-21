@@ -14,6 +14,7 @@ import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -350,6 +351,20 @@ public class HttpRequestUtil {
 	 * @return
 	 */
 	public String postContent(String url, HashMap<String, String> headers, String param, List<HttpCookie> listCookie) {
+		return postContent(url,headers,param,listCookie,false);
+	}
+
+	/**
+	 * do a Http Post
+	 *
+	 * @param url
+	 * @param headers
+	 * @param param
+	 * @param iCookies 可以为null
+	 * @param decode
+	 * @return
+	 */
+	public String postContent(String url, HashMap<String, String> headers, String param, List<HttpCookie> listCookie , boolean decode) {
 		StringBuffer result = new StringBuffer();
 		BufferedReader in = null;
 		try {
@@ -363,7 +378,11 @@ public class HttpRequestUtil {
 
 			// 建立输入流，向指向的URL传入参数
 			DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
-			dos.writeBytes(param);
+			if(decode) {
+				dos.write(param.getBytes(StandardCharsets.UTF_8));
+			}else{
+				dos.writeBytes(param);
+			}
 			dos.flush();
 			dos.close();
 			

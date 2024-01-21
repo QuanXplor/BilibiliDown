@@ -116,6 +116,12 @@ public class Global {
 	public static String batchDownloadConfigName;
 	@Config(key = "bilibili.download.batch.config.name.pattern", note = "一键下载配置名称的匹配正则表达式", defaultValue = "^batchDownload.*\\.config$")
 	public static Pattern batchDownloadConfigNamePattern;
+	@Config(key = "bilibili.download.batch.config.push", note = "定时下载完毕是否推送", defaultValue = "false",valids = { "true", "false" } )
+	public static boolean batchDownloadConfigPushSwitch;
+	@Config(key = "bilibili.download.batch.config.push.plushplus.token", note = "定时下载完毕推送PlushPlus token", defaultValue = "" )
+	public static String batchDownloadConfigPushPlushPlusToken;
+	@Config(key = "bilibili.download.batch.config.autoBatchDown", note = "是否开启定时批量下载", defaultValue = "false",valids = { "true", "false" } )
+	public static boolean batchDownloadConfigTimerSwitch;
 	// 登录相关
 	@Config(key = "bilibili.login.cookie.tryRefreshOnStartup", note = "每次程序打开时尝试刷新Cookie", defaultValue = "false", valids = { "true", "false" })
 	public static boolean tryRefreshCookieOnStartup;
@@ -138,6 +144,8 @@ public class Global {
 
 	public static boolean needToLogin = false;
 	public static boolean isLogin = false;
+	// 选中的一键下载的配置文件
+	public static String selectBatchDownloadConfigName;
 	// 信息查询相关
 	@Config(key = "bilibili.pageSize", note = "分页查询时，每页显示av个数(单个av可能不止一个视频)", defaultValue = "5")
 	public static int pageSize = 5; // 当有分页时，每页显示个数

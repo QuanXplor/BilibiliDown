@@ -35,6 +35,7 @@ public class DownloadInfoPanel extends JPanel implements ActionListener {
 	int remark;
 	int qn;
 	int realqn;
+	public final String[] downloadPath=new String[1];
 
 	// 下载相关
 	public INeedAV iNeedAV;
@@ -280,7 +281,10 @@ public class DownloadInfoPanel extends JPanel implements ActionListener {
 						if (Global.saveToRepo) {
 							RepoUtil.appendAndSave(record);
 						}
-						CmdUtil.convertOrAppendCmdToRenameBat(avid_qn, formattedTitle, page);
+						synchronized (downloadPath) {
+							String path = CmdUtil.convertOrAppendCmdToRenameBat(avid_qn, formattedTitle, page);
+							downloadPath[0]=path;
+						}
 					}
 				}
 			});

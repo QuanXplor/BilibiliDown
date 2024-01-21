@@ -1,6 +1,7 @@
 package nicelee.ui.thread;
 
 import java.awt.Dimension;
+import java.util.concurrent.Callable;
 
 import javax.swing.JPanel;
 
@@ -20,8 +21,9 @@ import nicelee.ui.TabDownload;
 import nicelee.ui.item.DownloadInfoPanel;
 import nicelee.ui.item.JOptionPaneManager;
 
-public class DownloadRunnable implements Runnable {
-	
+public class DownloadRunnable implements Callable<DownloadInfoPanel>,Runnable  {
+
+	private final boolean showAlert;
 	VideoInfo avInfo;
 	ClipInfo clip;
 	String displayName;
@@ -43,6 +45,9 @@ public class DownloadRunnable implements Runnable {
 //		this.record = avid + "-" + qn  + "-p" + page;
 //	}
 	public DownloadRunnable(VideoInfo avInfo, ClipInfo clip, int qn) {
+		this(avInfo,clip,qn,true);
+	}
+	public DownloadRunnable(VideoInfo avInfo, ClipInfo clip, int qn,boolean showAlert) {
 		this.avInfo = avInfo;
 		this.displayName = clip.getAvTitle() + "p" + clip.getRemark() + "-" +clip.getTitle();
 		this.clip = clip;
@@ -52,36 +57,46 @@ public class DownloadRunnable implements Runnable {
 		this.remark = clip.getRemark();
 		this.qn = qn;
 		this.record = avid + "-" + qn  + "-p" + page;
+		this.showAlert=showAlert;
 	}
 
 	@Override
 	public void run() {
-		try {
-			download();
-		} catch (BilibiliError e) {
-			JOptionPaneManager.alertErrMsgWithNewThread("发生了预料之外的错误", ResourcesUtil.detailsOfException(e));
-		}
+		call();
 	}
 
-	public void download() {
+	@Override
+	public DownloadInfoPanel call() {
+		try {
+			return download();
+		} catch (BilibiliError e) {
+			if(this.showAlert) {
+				JOptionPaneManager.alertErrMsgWithNewThread("发生了预料之外的错误", ResourcesUtil.detailsOfException(e));
+			}
+		}
+		return null;
+	}
+
+	public DownloadInfoPanel download() {
 		System.out.println("你点击了一次下载按钮...");
 		// 如果点击了全部暂停按钮，而此时在队列中
 		if(TabDownload.isStopAll()) {
 			System.out.println("你点击了一次暂停按钮...");
-			return;
+			return null;
 		}
 		//判断是否已经下载过
 		if(Global.useRepo && RepoUtil.isInRepo(record)) {
+			if(this.showAlert)
 			JOptionPaneManager.showMsgWithNewThread("提示", "您已经下载过视频" + record);
 			System.out.println("已经下载过 " + record);
-			return;
+			return null;
 		}
 		// 新建下载部件
 		DownloadInfoPanel downPanel = new DownloadInfoPanel(clip, qn);
 		// 判断是否在下载任务中
 		if (Global.downloadTaskList.get(downPanel) != null) {
 			System.out.println("已经存在相关下载");
-			return;
+			return null;
 		}
 		// 查询下载链接
 		INeedAV iNeedAV = new INeedAV();
@@ -102,16 +117,17 @@ public class DownloadRunnable implements Runnable {
 		//如果清晰度不符合预期，再判断一次记录
 		//判断是否已经下载过
 		if (qn != realQN && Global.useRepo && RepoUtil.isInRepo(record)) {
+			if(this.showAlert)
 			JOptionPaneManager.showMsgWithNewThread("提示", "您已经下载过视频" + record);
 			System.out.println("已经下载过 " + record);
-			return;
+			return null;
 		}
 		//获取实际清晰度后，初始化下载部件参数
 		downPanel.initDownloadParams(iNeedAV, url, avid_qn, formattedTitle, realQN);
 		// 再进行一次判断，看下载列表是否已经存在相应任务(防止并发误判)
 		if (Global.downloadTaskList.get(downPanel) != null) {
 			System.out.println("已经存在相关下载");
-			return;
+			return null;
 		}
 		// 将下载任务(HttpRequestUtil + DownloadInfoPanel)添加至全局列表, 让监控进程周期获取信息并刷新
 		Global.downloadTaskList.put(downPanel, iNeedAV.getDownloader());
@@ -140,7 +156,10 @@ public class DownloadRunnable implements Runnable {
 						if(Global.thumbUpAfterDownloaded && Global.isLogin && avid.startsWith("BV")) {
 							API.like(avid);
 						}
-						CmdUtil.convertOrAppendCmdToRenameBat(avid_qn, formattedTitle, page);
+						synchronized (downPanel.downloadPath) {
+							String path = CmdUtil.convertOrAppendCmdToRenameBat(avid_qn, formattedTitle, page);
+							downPanel.downloadPath[0]=path;
+						}
 					}
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -161,6 +180,7 @@ public class DownloadRunnable implements Runnable {
 				e.printStackTrace();
 			}
 		}
+		return downPanel;
 	}
 
 }

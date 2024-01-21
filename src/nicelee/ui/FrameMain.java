@@ -27,10 +27,9 @@ import nicelee.bilibili.util.Logger;
 import nicelee.bilibili.util.RepoUtil;
 import nicelee.bilibili.util.ResourcesUtil;
 import nicelee.ui.item.MJTitleBar;
-import nicelee.ui.thread.CookieRefreshThread;
-import nicelee.ui.thread.DownloadRunnable;
-import nicelee.ui.thread.LoginThread;
-import nicelee.ui.thread.MonitoringThread;
+import nicelee.ui.thread.*;
+
+import static nicelee.ui.Global.batchDownloadConfigTimerSwitch;
 
 public class FrameMain extends JFrame {
 
@@ -141,7 +140,9 @@ public class FrameMain extends JFrame {
 //		qr.dispose();
 		// 预扫描加载类
 		PackageScanLoader.validParserClasses.isEmpty();
-
+		if(batchDownloadConfigTimerSwitch) {
+			new TimerBatchDownloadThread().start();
+		}
 		System.out.println("如果过度界面显示时间过长，可双击跳过");
 		try {
 			while (Global.frWaiting.isVisible()) {

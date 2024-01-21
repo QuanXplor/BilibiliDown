@@ -1,7 +1,10 @@
 package nicelee.bilibili.util;
 
-public class Logger {
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
+public class Logger {
+	private final static SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	/**
 	 * 测试用
 	 * @param str
@@ -28,7 +31,7 @@ public class Logger {
 		String method = ele.getMethodName();
 		int line = ele.getLineNumber();
 		String preStr = String.format(str, obj);
-		String result = String.format("%s-%s/%d : %s", file, method, line, preStr);
+		String result = String.format(logStr(), file, method, line, preStr);
 		System.out.println(result);
 	}
 	
@@ -42,7 +45,7 @@ public class Logger {
 		file = file.substring(0, file.length() - 5);
 		String method = ele.getMethodName();
 		int line = ele.getLineNumber();
-		String result = String.format("%s-%s/%d : %s", file, method, line, str);
+		String result = String.format(logStr(), file, method, line, str);
 		System.out.println(result);
 	}
 	/**
@@ -55,7 +58,11 @@ public class Logger {
 		file = file.substring(0, file.length() - 5);
 		String method = ele.getMethodName();
 		int line = ele.getLineNumber();
-		String result = String.format("%s-%s/%d : %s", file, method, line, obj.toString());
+		String result = String.format(logStr(), file, method, line, obj.toString());
 		System.out.println(result);
+	}
+
+	private static String logStr(){
+		return sdf.format(new Date())+" %s-%s/%d : %s";
 	}
 }

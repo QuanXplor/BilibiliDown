@@ -1,6 +1,7 @@
 package nicelee.bilibili.parsers.impl;
 
 import java.util.LinkedHashMap;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.json.JSONArray;
@@ -92,8 +93,24 @@ public class MLParser extends AbstractPageQueryParser<VideoInfo> {
 				String avTitle =  jAV.getString("title");
 				String upName = jAV.getJSONObject("upper").getString("name");
 				String upId = "" + jAV.getJSONObject("upper").getLong("mid");
+				String pageUrl = jAV.optString("short_link","");
 				long favTime = jAV.optLong("fav_time") * 1000;
 				long cTime = jAV.optLong("ctime") * 1000;
+				int attr = jAV.getInt("attr");
+				if("已失效视频".equals(avTitle)){
+					if(attr!=1){
+						Logger.println("验证状态 attr:"+attr);
+					}
+					String title = Optional.ofNullable(jAV.optJSONArray("pages"))
+							.filter(o -> o.length() > 0)
+							.map(o -> o.getJSONObject(0))
+							.filter(o -> !o.isNull("title"))
+							.map(o->o.getString("title"))
+							.filter(o -> o.length() > 0)
+							.orElse("");
+					Logger.println("过滤失效视频:"+title);
+					continue;
+				}
 				JSONArray jClips = jAV.optJSONArray("pages");
 				if(jClips == null) {
 					String link = jAV.optString("link", "");
@@ -184,7 +201,7 @@ public class MLParser extends AbstractPageQueryParser<VideoInfo> {
 			return true;
 		} catch (Exception e) {
 			//e.printStackTrace();
-			return false;
+			throw e;
 		}
 	}
 	

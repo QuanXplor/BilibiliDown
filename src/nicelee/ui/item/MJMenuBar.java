@@ -218,6 +218,7 @@ public class MJMenuBar extends JMenuBar {
 			@Override
 			public void onItemSelected(int itemIndex, JRadioButtonMenuItem item) {
 				batchDownloadFileName = item.getText();
+				Global.selectBatchDownloadConfigName=batchDownloadFileName;
 				Logger.println("一键下载配置: " + batchDownloadFileName);
 			}
 			

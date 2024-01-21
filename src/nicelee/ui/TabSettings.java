@@ -143,6 +143,9 @@ public class TabSettings extends JPanel implements ActionListener {
 						value = cm.getSelectedItem().toString();
 					} else {
 						JTextField filed = (JTextField) comps[i + 1];
+						if(filed.getText()==null || filed.getText().trim().length()<1){
+							continue;
+						}
 						value = filed.getText().trim();
 					}
 					Global.settings.put(key, value);
