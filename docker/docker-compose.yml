@@ -1,0 +1,15 @@
+version: "3"
+services:
+  bili-downloader:
+    image: ["image name"]
+    volumes:
+# 持久化配置文件路径
+      - "../container/bilibili/config:/opt/bilibili/config"
+# 持久化下载文件
+      - "../container/bilibili/download:/opt/bilibili/download"
+    ports:
+      - "8888:8888"
+    restart: "always"
+    environment:
+# vnc登录时候的密码
+      - "PASSWD=111111"
