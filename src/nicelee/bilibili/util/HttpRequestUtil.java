@@ -1,12 +1,6 @@
 package nicelee.bilibili.util;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -15,9 +9,9 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -312,7 +306,13 @@ public class HttpRequestUtil {
 			if(conn.getResponseCode() == 412)
 				throw new Status412Exception("HTTP返回状态码为412");
 			String encoding = conn.getContentEncoding();
-			InputStream ism = conn.getInputStream();
+			InputStream ism;
+			if(conn.getResponseCode()==200){
+				ism = conn.getInputStream();
+			}else{
+				ism=conn.getErrorStream();
+			}
+
 			if (encoding != null && encoding.contains("gzip")) {// 首先判断服务器返回的数据是否支持gzip压缩，
 				// System.out.println(encoding);
 				// 如果支持则应该使用GZIPInputStream解压，否则会出现乱码无效数据
@@ -390,7 +390,11 @@ public class HttpRequestUtil {
 				throw new Status412Exception("HTTP返回状态码为412");
 
 			String encoding = conn.getContentEncoding();
-			InputStream ism = conn.getInputStream();
+			InputStream ism;
+			if(conn.getResponseCode()==200)
+				ism = conn.getInputStream();
+			else
+				ism=conn.getErrorStream();
 			// 判断服务器返回的数据是否支持gzip压缩
 			if (encoding != null && encoding.contains("gzip")) {
 				ism = new GZIPInputStream(conn.getInputStream());
@@ -410,6 +414,114 @@ public class HttpRequestUtil {
 		}
 		return result.toString();
 	}
+
+
+	public String uploadMoreFile(String url, HashMap<String, String> headers, Map<String,String> param,Map<String,File> files ,List<HttpCookie> listCookie) {
+		StringBuilder result = new StringBuilder();
+		BufferedReader in = null;
+		String BOUNDARY = UUID.randomUUID().toString().toLowerCase().replaceAll("-","");  //边界标识   随机生成
+		String PREFIX = "--", LINE_END = "\r\n";
+		String CONTENT_TYPE = "multipart/form-data";   //内容类型
+		String CHARSET=StandardCharsets.UTF_8.displayName();
+		// 显示进度框
+		//      showProgressDialog();
+		try {
+			headers.put("Charset",StandardCharsets.UTF_8.displayName());
+			headers.put("Content-Type",CONTENT_TYPE + "; boundary=" + BOUNDARY);
+			HttpURLConnection conn = connect(headers, url, listCookie);
+			conn.setConnectTimeout(1000*60);
+			conn.setReadTimeout(1000*60);
+			conn.setChunkedStreamingMode(0);
+			// 设置参数
+			conn.setDoOutput(true); // 需要输出
+			conn.setDoInput(true); // 需要输入
+			conn.setUseCaches(false); // 不允许缓存
+			conn.setRequestMethod("POST"); // 设置POST方式连接
+			conn.connect();
+
+			/**
+			 * 当文件不为空，把文件包装并且上传
+			 */
+			DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
+			StringBuffer sb=new StringBuffer();
+
+			if (param != null && param.size() > 0) {
+				for (Map.Entry<String, String> entry : param.entrySet() ){
+					sb.append(PREFIX)
+							.append(BOUNDARY)
+							.append(LINE_END)
+							.append("Content-Disposition: form-data; name=\"" + entry.getKey() + "\"" + LINE_END)
+							.append("Content-Type: text/plain; charset=" + CHARSET + LINE_END)
+							.append("Content-Transfer-Encoding: 8bit" + LINE_END)
+							.append(LINE_END)// 参数头设置完以后需要两个换行，然后才是参数内容
+							.append(entry.getValue())
+							.append(LINE_END);
+				}
+				dos.write(sb.toString().getBytes(CHARSET));
+			}
+
+			if(files!=null) {
+				for (Map.Entry<String, File> fileEntry : files.entrySet()) {
+					/**
+					 * 这里重点注意： name里面的值为服务端需要的key 只有这个key 才可以得到对应的文件
+					 * filename是文件的名字，包含后缀名的 比如:abc.png
+					 */
+					sb=new StringBuffer();
+					sb.append(PREFIX)
+							.append(BOUNDARY)
+							.append(LINE_END).append("Content-Disposition: form-data; name=\"").append(fileEntry.getKey()).append("\"; filename=\"").append(new String(fileEntry.getValue().getName().getBytes(StandardCharsets.ISO_8859_1), CHARSET)).append("\"").append(LINE_END)
+							.append("Content-Type: video/mp4" + LINE_END) //此处的ContentType不同于 请求头 中Content-Type
+							.append("Content-Transfer-Encoding: 8bit" + LINE_END)
+							.append(LINE_END);// 参数头设置完以后需要两个换行，然后才是参数内容
+					dos.writeBytes(sb.toString());
+					dos.flush();
+					InputStream is = new FileInputStream(fileEntry.getValue());
+					byte[] buffer = new byte[1024];
+					int len = 0;
+					while ((len = is.read(buffer)) != -1) {
+						dos.write(buffer, 0, len);
+					}
+					is.close();
+					dos.writeBytes(LINE_END);
+				}
+			}
+			//请求结束标志
+			dos.writeBytes(PREFIX + BOUNDARY + PREFIX + LINE_END);
+			dos.flush();
+			dos.close();
+			/**
+			 * 获取响应码  200=成功
+			 * 当响应成功，获取响应的流
+			 */
+
+			String encoding = conn.getContentEncoding();
+			InputStream ism;
+			if(conn.getResponseCode()==200)
+				ism = conn.getInputStream();
+			else
+				ism=conn.getErrorStream();
+			// 判断服务器返回的数据是否支持gzip压缩
+			if (encoding != null && encoding.contains("gzip")) {
+				ism = new GZIPInputStream(ism);
+			}
+			in = new BufferedReader(new InputStreamReader(ism, "utf-8"));
+			String line;
+			while ((line = in.readLine()) != null) {
+				line = new String(line.getBytes(), "UTF-8");
+				result.append(line);
+			}
+
+		} catch (Status412Exception e) {
+			throw e;
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.out.println("发送GET请求出现异常！" + e);
+		} finally {
+			ResourcesUtil.closeQuietly(in);
+		}
+		return result.toString();
+	}
+
 
 	/**
 	 * 测试视频链接url的有效性

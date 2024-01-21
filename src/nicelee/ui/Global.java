@@ -122,6 +122,16 @@ public class Global {
 	public static String batchDownloadConfigPushPlushPlusToken;
 	@Config(key = "bilibili.download.batch.config.autoBatchDown", note = "是否开启定时批量下载", defaultValue = "false",valids = { "true", "false" } )
 	public static boolean batchDownloadConfigTimerSwitch;
+	@Config(key = "bilibili.download.batch.config.peertube", note = "是否开启peertube上传", defaultValue = "false",valids = { "true", "false" })
+	public static boolean peertubeSwitch;
+	@Config(key = "bilibili.download.batch.config.peertube.url", note = "peertube 地址", defaultValue = "", warning = false )
+	public static String peertubeApiUrl;
+	@Config(key = "bilibili.download.batch.config.peertube.username", note = "peertube 用户名", defaultValue = "", warning = false )
+	public static String peertubeUsername;
+	@Config(key = "bilibili.download.batch.config.peertube.password", note = "peertube 密码", defaultValue = "", warning = false )
+	public static String peertubePassword;
+	@Config(key = "bilibili.download.batch.config.peertube.channel", note = "peertube 频道", defaultValue = "" , warning = false)
+	public static String peertubeChannel;
 	// 登录相关
 	@Config(key = "bilibili.login.cookie.tryRefreshOnStartup", note = "每次程序打开时尝试刷新Cookie", defaultValue = "false", valids = { "true", "false" })
 	public static boolean tryRefreshCookieOnStartup;

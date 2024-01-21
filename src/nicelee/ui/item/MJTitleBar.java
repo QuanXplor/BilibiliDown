@@ -10,6 +10,11 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowEvent;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
@@ -36,6 +41,7 @@ public class MJTitleBar extends JPanel  implements MouseListener, MouseMotionLis
 	private boolean setTitle;
 	private boolean setMenuBar;
 	private JLabel title;
+	private List<Supplier<Boolean>> destroy=new ArrayList<>();
 	
 	public MJTitleBar(JFrame frame) {
 		this(frame, false, false);
@@ -51,6 +57,10 @@ public class MJTitleBar extends JPanel  implements MouseListener, MouseMotionLis
 		this.setTitle = setTitle;
 		this.setMenuBar = setMenuBar;
 		init();
+	}
+
+	public void addDestroyEvent(Supplier<Boolean> supplier){
+		destroy.add(supplier);
 	}
 
 	private void init() {
@@ -173,8 +183,20 @@ public class MJTitleBar extends JPanel  implements MouseListener, MouseMotionLis
 					Logger.println(m);
 					if(m != 0) 	return;
 				}
+				List<Supplier<Boolean>> collect = destroy.stream().filter(o -> {
+					try {
+						Boolean aBoolean = o.get();
+						return !aBoolean;
+					} catch (Exception e1) {
+						e1.printStackTrace();
+					}
+					return true;
+				}).collect(Collectors.toList());
+				if(collect.size()>0){
+					Logger.printf("close failed \n"+collect.stream().map(o->o.getClass().getSimpleName()).collect(Collectors.joining(",")));
+				}
 				Logger.println("closing...");
-				WindowEvent event=new WindowEvent(frame,WindowEvent.WINDOW_CLOSING);
+				WindowEvent event = new WindowEvent(frame, WindowEvent.WINDOW_CLOSING);
 				frame.dispatchEvent(event);
 			}
 			

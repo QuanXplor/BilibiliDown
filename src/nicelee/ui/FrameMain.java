@@ -143,6 +143,12 @@ public class FrameMain extends JFrame {
 		if(batchDownloadConfigTimerSwitch) {
 			new TimerBatchDownloadThread().start();
 		}
+		if(Global.peertubeSwitch){
+			PeertubeRecordThread peertubeRecordThread = new PeertubeRecordThread();
+			peertubeRecordThread.start();
+			new PeertubeUploaderThread().start();
+			main.titleBar.addDestroyEvent(peertubeRecordThread::close);
+		}
 		System.out.println("如果过度界面显示时间过长，可双击跳过");
 		try {
 			while (Global.frWaiting.isVisible()) {

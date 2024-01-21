@@ -1,6 +1,7 @@
 package nicelee.bilibili.model;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 
 public class VideoInfo {
 	String videoName;
@@ -11,6 +12,7 @@ public class VideoInfo {
 	String brief;
 	LinkedHashMap<Long, ClipInfo> clips;// 未使用 Integer 为 Page
 	String videoLink;
+	List<String> commont;
 
 	public void print() {
 		System.out.print(toString());
@@ -100,4 +102,11 @@ public class VideoInfo {
 		this.clips = clips;
 	}
 
+	public List<String> getCommont() {
+		return commont;
+	}
+
+	public void setCommont(List<String> commont) {
+		this.commont = commont;
+	}
 }
