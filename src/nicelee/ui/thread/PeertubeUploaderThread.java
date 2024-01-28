@@ -76,7 +76,7 @@ public class PeertubeUploaderThread extends Thread {
     private List<String> readSeparator(List<String> result,String content,int index,int num){
         if(num>0) {
             int endIndex = content.indexOf(",", index);
-            String substring = content.substring(index, endIndex>-1?endIndex:content.length());
+            String substring = content.substring(index, num<2?content.length():endIndex);
             result.add(substring);
             readSeparator(result,content,index+substring.length()+1,--num);
         }
