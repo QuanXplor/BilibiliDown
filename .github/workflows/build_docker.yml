@@ -12,7 +12,7 @@ on:
       logLevel:
         description: 'Log level'
         required: true
-        default: 'info'
+        default: 'info' 
       tags:
         description: 'Test scenario tags'
 
