@@ -284,6 +284,7 @@ public class DownloadInfoPanel extends JPanel implements ActionListener {
 						synchronized (downloadPath) {
 							String path = CmdUtil.convertOrAppendCmdToRenameBat(avid_qn, formattedTitle, page);
 							downloadPath[0]=path;
+							downloadPath.notifyAll();
 						}
 					}
 				}
