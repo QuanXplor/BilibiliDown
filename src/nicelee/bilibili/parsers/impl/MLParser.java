@@ -76,6 +76,9 @@ public class MLParser extends AbstractPageQueryParser<VideoInfo> {
 			JSONObject jobj = new JSONObject(json);
 			JSONObject jData = jobj.getJSONObject("data");
 			JSONObject jInfo = jobj.getJSONObject("data").getJSONObject("info");
+			if(!jInfo.has("upper")){
+				return false;
+			}
 			if(pageQueryResult.getVideoName() == null) {
 				pageQueryResult.setVideoId("ml" + favID);
 				pageQueryResult.setVideoName(jInfo.getString("title") + paramSetter.getPage());
