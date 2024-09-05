@@ -120,6 +120,10 @@ public class Global {
 	public static boolean batchDownloadConfigPushSwitch;
 	@Config(key = "bilibili.download.batch.config.push.plushplus.token", note = "定时下载完毕推送PlushPlus token", defaultValue = "" )
 	public static String batchDownloadConfigPushPlushPlusToken;
+	@Config(key = "bilibili.download.batch.config.push.gotify.url", note = "定时下载完毕推送gotify服务地址", defaultValue = "" )
+	public static String batchDownloadConfigPushGotifyServiceUrl;
+	@Config(key = "bilibili.download.batch.config.push.gotify.token", note = "定时下载完毕推送gotify token", defaultValue = "" )
+	public static String batchDownloadConfigPushGotifyToken;
 	@Config(key = "bilibili.download.batch.config.autoBatchDown", note = "是否开启定时批量下载", defaultValue = "false",valids = { "true", "false" } )
 	public static boolean batchDownloadConfigTimerSwitch;
 	@Config(key = "bilibili.download.batch.config.peertube", note = "是否开启peertube上传", defaultValue = "false",valids = { "true", "false" })

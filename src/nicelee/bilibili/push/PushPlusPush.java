@@ -31,13 +31,12 @@ public class PushPlusPush implements IPush,IPushTemplate {
     @Override
     public boolean push(Map<String, Object> param) {
         try{
-            if(this.token==null || this.token.trim().length()<1){
+            if(this.token==null || this.token.trim().isEmpty()){
                 Logger.println("PlushPlus推送token为空，放弃推送");
             }else {
                 HashMap<String, String> headers = new HashMap<>();
                 headers.put("Content-Type", "application/json; charset=UTF-8");
                 String json = this.acquirePushMsg(param);
-                System.out.println(json);
                 util.postContent(pushUrl, headers, json, null, true);
             }
         }catch (Exception e){
@@ -49,23 +48,8 @@ public class PushPlusPush implements IPush,IPushTemplate {
 
     @Override
     public String acquirePushMsg(Map<String, Object> param) {
-        StringBuilder content=new StringBuilder();
-        content.append("## 下载信息\\n ");
-        content.append("- **开始时间**：").append(param.getOrDefault("startTime","")).append(" \\n " );
-        content.append("- **下载数量**：").append(param.getOrDefault("num","")).append(" \\n ");
-        content.append("- **下载耗时**：").append(param.getOrDefault("cost","")).append(" \\n");
-        content.append("- **下载清单**： \\n" );
-        List<Map<String,String>> list= (List<Map<String, String>>) param.getOrDefault("list", Collections.emptyList());
-        for(Map<String,String> item : list) {
-            content.append("\\t 1. [").append(item.getOrDefault("title", "")).append("]")
-                    .append("(").append(item.getOrDefault("pageUrl", "")).append(")")
-                    .append(" - ").append(item.getOrDefault("result", ""));
-            if ("下载成功".equals(item.getOrDefault("result", ""))) {
-                content.append(" [大小:").append(item.getOrDefault("fileSize", ""))
-                        .append(" 时长:").append(item.getOrDefault("duration", ""))
-                        .append(" 分辨率:").append(item.getOrDefault("resolution", "")).append("]\\n");
-            }
-        }
+        String content=IPushTemplate.super.acquirePushMsg(param);
+        content="## 下载信息\\n "+content;
         return "{\n" +
                 "    \"token\":\""+ this.token+"\",\n" +
                 "    \"title\":\"下载结果\",\n" +

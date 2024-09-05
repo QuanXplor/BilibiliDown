@@ -16,16 +16,19 @@ public class PushFace implements IPush {
 
     public PushFace() {
         data.put("PushPlus",new PushPlusPush());
+        data.put("Gotify",new GotifyPush());
     }
 
     @Override
     public boolean push(Map<String, Object> param) {
         // 将来多了可以根据配置文件选择情况，选择使用那个具体实现
-        return data.get("PushPlus").push(param);
+        data.forEach((key, value) -> value.push(param));
+        return true;
     }
 
     public static void main(String[] args) {
-        Global.batchDownloadConfigPushPlushPlusToken="9da6de7c379042848f1f4b6b4a5ffa64";
+        Global.batchDownloadConfigPushGotifyToken="abcde";
+        Global.batchDownloadConfigPushGotifyServiceUrl="https://localhost";
         Map<String,Object> map=new HashMap<>();
         map.put("startTime",new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
         map.put("num",2);
