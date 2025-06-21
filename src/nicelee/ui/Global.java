@@ -21,11 +21,14 @@ import nicelee.bilibili.enums.DownloadModeEnum;
 import nicelee.bilibili.util.ResourcesUtil;
 import nicelee.bilibili.util.net.TrustAllCertSSLUtil;
 import nicelee.ui.item.DownloadInfoPanel;
+import nicelee.ui.thread.DownloadExecutors;
 
 public class Global {
 	// 界面显示相关
-	@Config(key = "bilibili.version", defaultValue = "v6.29", warning = false)
+	@Config(key = "bilibili.version", defaultValue = "v6.39", warning = false)
 	public static String version; // 一般情况下，我们不会设置这个标签，这个用于测试
+	@Config(key = "bilibili.time.syncServer", note = "同步服务器的时间", defaultValue = "false", valids = { "true", "false" })
+	public static boolean syncServerTime;
 	@Config(key = "bilibili.theme", note = "界面主题", defaultValue = "true", eq_true = "default", valids = { "default", "system" })
 	public static boolean themeDefault;
 	@Config(key = "bilibili.button.style", note = "Button样式", defaultValue = "true", eq_true = "design", valids = { "design", "default" })
@@ -62,6 +65,8 @@ public class Global {
 	public static int maxFailRetry;
 	@Config(key = "bilibili.download.retry.reloadDownloadUrl", note = "重试时，重新查询下载链接", defaultValue = "false", valids = { "true", "false" })
 	public static boolean reloadDownloadUrl;
+	@Config(key = "bilibili.download.urlValidPeriod", note = "下载url的有效时长(min)", defaultValue = "90", multiply = 60000)
+	public static long urlValidPeriod;
 	@Config(key = "bilibili.format", defaultValue = "0", valids = { "0", "1", "2" }, note = "优先下载格式, 0-m4s,1-flv,2-mp4")
 	public static int downloadFormat = MP4; // 优先下载格式，如不存在该类型的源，那么将默认转为下载另一种格式
 	@Config(key = "bilibili.dash.download.mode", defaultValue = "0", valids = { "0", "1", "2" }, note = "DASH下载模式: 0-下载音视频,1-仅视频,2-仅音频")
@@ -75,7 +80,15 @@ public class Global {
 	public static int[] audioQualityPriority = {30280, 30232, 30216, -1};
 	@Config(key = "bilibili.dash.checkUrl", note = "查询DASH方式的下载链接时，检查链接有效性", defaultValue = "false", valids = { "true", "false" })
 	public static boolean checkDashUrl = false;
-	@Config(key = "bilibili.savePath", note = "保存路径", defaultValue = "./download/")
+	@Config(key = "bilibili.download.forceHttp", note = "强制将音视频下载地址的https转为http(PCDN除外)", defaultValue = "false", valids = { "true", "false" })
+	public static boolean forceHttp = false;
+	@Config(key = "bilibili.download.host.forceReplace", note = "强制替换音视频下载服务器host", defaultValue = "false", valids = { "true", "false" })
+	public static boolean forceReplaceUposHost = false;
+	@Config(key = "bilibili.download.host.forceReplace.pattern", note = "功能开启时，匹配该规则的链接会被替换host", defaultValue = "https?://[^/]+/upgcxcode")
+	public static String forceReplaceUrlPattern = "^https?://[^/]+/upgcxcode";
+	@Config(key = "bilibili.download.host.alternative", note = "自定义的下载服务器host", defaultValue = "upos-sz-estghw.bilivideo.com")
+	public static String altHost = "upos-sz-mirror08c.bilivideo.com";
+	@Config(key = "bilibili.savePath", note = "保存路径", defaultValue = "./download/", pathType = "dir")
 	public static String savePath = "./download/"; // 下载文件保存路径
 	@Config(key = "bilibili.download.poolSize", note = "下载任务线程池大小", defaultValue = "1")
 	public static int downloadPoolSize;// 下载线程池
@@ -103,15 +116,29 @@ public class Global {
 	public static boolean saveToRepo; // 使用仓库保存下载成功的记录
 	@Config(key = "bilibili.name.format", note = "自定义下载文件名称", defaultValue = "(:listName listName-)avTitle-pDisplay-clipTitle-qn")
 	public static String formatStr;
+	@Config(key = "bilibili.name.format.clipTitle.allowNull", note = "自定义下载名称时，若avTitle等于clipTitle，将clipTitle置空", defaultValue = "false", eq_true = "true", valids = { "true", "false" })
+	public static boolean ctFormatAllowNull;
 	@Config(key = "bilibili.name.date.favTime.pattern", note = "收藏时间格式化", defaultValue = "yyMMdd")
 	public static String favTimeFormat;
 	@Config(key = "bilibili.name.date.cTime.pattern", note = "发布/更新时间格式化", defaultValue = "yyMMdd")
 	public static String cTimeFormat;
 	@Config(key = "bilibili.name.doAfterComplete", note = "下载完成后自动重命名", defaultValue = "true", valids = { "true", "false" })
 	public static boolean doRenameAfterComplete = true;
+	@Config(key = "bilibili.name.autoNumber", note = "遇到同名文件自动添加序号", defaultValue = "true", valids = { "true", "false" })
+	public static boolean autoNumberWhenFileExists = true;
 	@Config(key = "bilibili.repo.definitionStrictMode", note = "是否将同一视频不同清晰度看作不同任务", defaultValue = "false", eq_true = "on", valids = { "on",
 			"off" }) /* 存在某一清晰度后, 在下载另一种清晰度时是否判断已完成 */
 	public static boolean repoInDefinitionStrictMode; //
+	@Config(key = "bilibili.download.push.type", note = "推送消息器的类型", defaultValue = "Print")
+	public static String msgPushType;
+	@Config(key = "bilibili.download.push.account", note = "推送消息需要的账户", defaultValue = "")
+	public static String msgPushAccount;
+	@Config(key = "bilibili.download.push.token", note = "推送消息需要的密码或者凭证", defaultValue = "")
+	public static String msgPushToken;
+	@Config(key = "bilibili.download.batch.plan", note = "按计划分配每次一键下载任务之间的间隔", defaultValue = "06:00~02:00=>r(300,480); 02:00~06:00=>~06:00+r(0,360); 00:00~00:00=>r(600,600)")
+	public static String batchDownloadPlan;
+	@Config(key = "bilibili.download.batch.plan.runOnStartup", note = "在程序启动时，按计划进行周期性批量下载", defaultValue = "false", valids = { "true", "false" })
+	public static boolean batchDownloadRbyRRunOnStartup;
 	@Config(key = "bilibili.download.batch.config.name", note = "一键下载配置的默认名称", defaultValue = "batchDownload.config")
 	public static String batchDownloadConfigName;
 	@Config(key = "bilibili.download.batch.config.name.pattern", note = "一键下载配置名称的匹配正则表达式", defaultValue = "^batchDownload.*\\.config$")
@@ -165,6 +192,8 @@ public class Global {
 	public static int pageSize = 5; // 当有分页时，每页显示个数
 	@Config(key = "bilibili.pageDisplay", defaultValue = "listAll")
 	public static String pageDisplay = "listAll"; // 分页查询时，结果展示方式 listAll/promptAll(promptAll 逐渐弃用)
+	@Config(key = "bilibili.info.query.strategy", note = "查询可用清晰度时，使用的策略", defaultValue = "returnFixedValue", valids = { "tryNormalTypeFirst", "judgeTypeFirst", "returnFixedValue" })
+	public static String infoQueryStrategy;
 	// 临时文件相关
 	@Config(key = "bilibili.restrictTempMode", defaultValue = "true", eq_true = "on", valids = { "on", "off" })
 	public static boolean restrictTempMode;
@@ -179,13 +208,20 @@ public class Global {
 	@Config(key = "bilibili.download.ffmpeg.sources.active", note = "生效的ffmpeg源", defaultValue = "Github")
 	public static String ffmpegSourceActive;
 	// FFMPEG 路径
-	@Config(key = "bilibili.ffmpegPath", note = "ffmpeg路径", defaultValue = "ffmpeg")
+	@Config(key = "bilibili.ffmpegPath", note = "ffmpeg路径", defaultValue = "ffmpeg", pathType = "file")
 	public static String ffmpegPath;
 	@Config(key = "bilibili.dash.ffmpeg.command.merge", note = "ffmpeg音视频合并命令", 
 			defaultValue = "{FFmpeg}, -i, {SavePath}{VideoName}, -i, {SavePath}{AudioName}, -c, copy, {SavePath}{DstName}")
 	public static String[] ffmpegCmd4Merge;
+	@Config(key = "bilibili.dash.ffmpeg.command.transAudioOnly", note = "ffmpeg音频转换命令", 
+			defaultValue = "{FFmpeg}, -y, -i, {SavePath}{AudioName}, -vn, -c:a, copy, {SavePath}{DstName}")
+	public static String[] ffmpegCmd4AudioOnly;
+	@Config(key = "bilibili.dash.suffix4AudioOnly", note = "仅下载音频时的后缀名称(带.)", defaultValue = ".mp4")
+	public static String suffix4AudioOnly;
 	@Config(key = "bilibili.flv.ffmpeg", note = "FLV合并时是否调用ffmpeg", defaultValue = "false", valids = { "true", "false" })
 	public static boolean flvUseFFmpeg = false;
+	@Config(key = "bilibili.alert.ffmpegFail", note = "ffmpeg合并失败是否抛出异常", defaultValue = "true", valids = { "true", "false" })
+	public static boolean alertIfFFmpegFail = true;
 	@Config(key = "bilibili.cmd.debug", note = "调用外部命令时是否显示输出", defaultValue = "false", valids = { "true", "false" })
 	public static boolean debugCmd;
 	// 批量下载设置相关
@@ -223,6 +259,10 @@ public class Global {
 
 	@Config(key = "bilibili.userAgent.pc", note = "HTTP请求使用的UserAgent(PC Web)", defaultValue = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0")
 	public static String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0";
+	@Config(key = "bilibili.userAgent.pc.fingerprint", note = "浏览器指纹(取自cookie buvid_fp)", defaultValue = "a8bad806241b0b0f7add1024fbd701fa")
+	public static String userAgentFingerprint = "";
+	@Config(key = "bilibili.userAgent.pc.payload", note = "截取自api请求https://api.bilibili.com/x/internal/gaia-gateway/ExClimbWuzhi", defaultValue = "")
+	public static String userAgentPayload = "";
 	@Config(key = "bilibili.github.token", note = "Github API鉴权token", defaultValue = "", warning = false)
 	public static String githubToken; // 一般情况下，用于Github API鉴权, 暂只用于更新Beta版本
 	final public static HashMap<String, String> settings = new LinkedHashMap<>();
@@ -247,7 +287,7 @@ public class Global {
 			}
 		}
 		// 特殊处理
-		downLoadThreadPool = Executors.newFixedThreadPool(downloadPoolSize);
+		downLoadThreadPool = DownloadExecutors.newPriorityFixedThreadPool(downloadPoolSize);
 		String savePath = ResourcesUtil.resolve(Global.savePath);
 		if (savePath.endsWith("\\")) {
 			savePath = savePath.substring(0, savePath.length() - 1) + "/";
@@ -324,6 +364,9 @@ public class Global {
 
 	private static void setValue(Field field, String value, boolean isDefaultValue, Config config) {
 		try {
+			if(value.contains("，") || value.contains("：")) {
+				System.err.printf("%s 配置含有非法字符，请注意全半角\n", config.key());
+			}
 			if (field.getType().equals(String.class)) {
 				if (isDefaultValue && value.isEmpty())
 					field.set(null, null);
@@ -358,10 +401,7 @@ public class Global {
 				}
 				field.set(null, values);
 			}else if (field.getType().equals(int.class) || field.getType().equals(long.class)) {
-				if (isDefaultValue)
-					field.set(null, Integer.parseInt(value));
-				else
-					field.set(null, Integer.parseInt(value) * config.multiply());
+				field.set(null, Integer.parseInt(value) * config.multiply());
 			} else if (field.getType().equals(boolean.class)) {
 				if (isDefaultValue)
 					field.set(null, "true".equalsIgnoreCase(value));

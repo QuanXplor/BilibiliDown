@@ -7,7 +7,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -15,6 +14,7 @@ import org.json.JSONObject;
 import nicelee.bilibili.API;
 import nicelee.bilibili.enums.DownloadModeEnum;
 import nicelee.bilibili.exceptions.ApiLinkQueryParseError;
+import nicelee.bilibili.exceptions.NoSubtitleException;
 import nicelee.bilibili.exceptions.QualityTooLowException;
 import nicelee.bilibili.model.ClipInfo;
 import nicelee.bilibili.model.StoryClipInfo;
@@ -25,6 +25,7 @@ import nicelee.bilibili.util.HttpCookies;
 import nicelee.bilibili.util.HttpHeaders;
 import nicelee.bilibili.util.HttpRequestUtil;
 import nicelee.bilibili.util.Logger;
+import nicelee.bilibili.util.convert.ConvertUtil;
 import nicelee.ui.Global;
 
 public abstract class AbstractBaseParser implements IInputParser {
@@ -64,7 +65,7 @@ public abstract class AbstractBaseParser implements IInputParser {
 		// 获取av下的视频列表
 		String url = String.format("https://api.bilibili.com/x/player/pagelist?bvid=%s&jsonp=jsonp", bvId);
 		HashMap<String, String> headers_json = new HttpHeaders().getBiliJsonAPIHeaders(bvId);
-		String json = util.getContent(url, headers_json, HttpCookies.getGlobalCookies());
+		String json = util.getContent(url, headers_json, HttpCookies.globalCookiesWithFingerprint());
 		Logger.println(url);
 		Logger.println(json);
 		JSONArray array = new JSONObject(json).getJSONArray("data");
@@ -72,44 +73,66 @@ public abstract class AbstractBaseParser implements IInputParser {
 		// 根据第一个获取总体大致信息
 		JSONObject jObj = array.getJSONObject(0);
 		long cid = jObj.getLong("cid");
-		String detailUrl = String.format("https://api.bilibili.com/x/web-interface/view?cid=%d&bvid=%s", cid, bvId);
-		String detailJson = util.getContent(detailUrl, headers_json, HttpCookies.getGlobalCookies());
+//		String detailUrl = String.format("https://api.bilibili.com/x/web-interface/view?cid=%d&bvid=%s", cid, bvId);
+//		String detailJson = util.getContent(detailUrl, headers_json, HttpCookies.globalCookiesWithFingerprint());
+//		JSONObject detailObj = new JSONObject(detailJson).getJSONObject("data");
+		String detailUrl = "https://api.bilibili.com/x/web-interface/wbi/view/detail?platform=web&page_no=1&p=1&need_operation_card=1&web_rm_repeat=1&need_elec=1&bvid="
+				+ bvId;
+		detailUrl += API.genDmImgParams();
+		detailUrl = API.encWbi(detailUrl);
+		String detailJson = util.getContent(detailUrl, headers_json, HttpCookies.globalCookiesWithFingerprint());
 		Logger.println(detailUrl);
 		Logger.println(detailJson);
-		JSONObject detailObj = new JSONObject(detailJson).getJSONObject("data");
-
-		long ctime = detailObj.optLong("ctime") * 1000;
-		viInfo.setVideoName(detailObj.getString("title"));
-		viInfo.setBrief(detailObj.getString("desc"));
-		viInfo.setAuthor(detailObj.getJSONObject("owner").getString("name"));
-		viInfo.setAuthorId(String.valueOf(detailObj.getJSONObject("owner").getLong("mid")));
-		viInfo.setVideoPreview(detailObj.getString("pic"));
+		JSONObject detailRaw = new JSONObject(detailJson);
+		long aid = ConvertUtil.Bv2Av(bvId);
+		int videoCnt; long ctime;
+		if(detailRaw.optInt("code") == -403) {
+			detailUrl = String.format("https://api.bilibili.com/x/v3/fav/resource/infos?resources=%d:2&platform=web&folder_mid=&folder_id=", aid);
+			detailJson = util.getContent(detailUrl, headers_json, HttpCookies.globalCookiesWithFingerprint());
+			Logger.println(detailUrl);
+			Logger.println(detailJson);
+			JSONObject detailObj = new JSONObject(detailJson).getJSONArray("data").getJSONObject(0);
+			ctime = detailObj.optLong("ctime") * 1000;
+			videoCnt = detailObj.optInt("page");
+			viInfo.setVideoName(detailObj.getString("title"));
+			viInfo.setBrief(detailObj.getString("intro"));
+			viInfo.setAuthor(detailObj.getJSONObject("upper").getString("name"));
+			viInfo.setAuthorId(String.valueOf(detailObj.getJSONObject("upper").getLong("mid")));
+			viInfo.setVideoPreview(detailObj.getString("cover"));
+		} else {
+			JSONObject detailObj = detailRaw.getJSONObject("data").getJSONObject("View");
+			ctime = detailObj.optLong("ctime") * 1000;
+			videoCnt = detailObj.optInt("videos");
+			viInfo.setVideoName(detailObj.getString("title"));
+			viInfo.setBrief(detailObj.getString("desc"));
+			viInfo.setAuthor(detailObj.getJSONObject("owner").getString("name"));
+			viInfo.setAuthorId(String.valueOf(detailObj.getJSONObject("owner").getLong("mid")));
+			viInfo.setVideoPreview(detailObj.getString("pic"));
+		}
 
 		// 判断是否是互动视频
-		if (detailObj.optInt("videos") > 1 && array.length() == 1) {
+		if (videoCnt > 1 && array.length() == 1) {
 			// 查询graph_version版本
-			String url_graph_version = String.format("https://api.bilibili.com/x/player.so?id=cid:%d&bvid=%s", cid,
-					bvId);
-			String xml = util.getContent(url_graph_version, headers_json, HttpCookies.getGlobalCookies());
-			Logger.println(xml);
-			Pattern p = Pattern.compile("<interaction>.*\"graph_version\" *: *([0-9]+).*</interaction>");
-			Matcher matcher = p.matcher(xml);
-			if (matcher.find()) {
-				String graph_version = matcher.group(1);
-				Logger.println(graph_version);
-				List<List<StoryClipInfo>> story_list = new ArrayList<>();
-				List<StoryClipInfo> originStory = new ArrayList<StoryClipInfo>();
-				StoryClipInfo storyClip = new StoryClipInfo(cid);
-				originStory.add(storyClip);
-				HashSet<StoryClipInfo> node_list = new HashSet<>();
-				// 从根节点，一直遍历到子节点，找到所有故事线，放到story_list
-				collectStoryList(bvId, "", graph_version, originStory, story_list, node_list);
-				LinkedHashMap<Long, ClipInfo> clipMap = storyList2Map(bvId, videoFormat, getVideoLink, viInfo,
-						story_list);
-				viInfo.setClips(clipMap);
-				viInfo.print();
-				return viInfo;
-			}
+			String url_graph_version = String.format("https://api.bilibili.com/x/player/wbi/v2?aid=%d&cid=%d&isGaiaAvoided=false", aid, cid);
+			url_graph_version += API.genDmImgParams();
+			url_graph_version = API.encWbi(url_graph_version);
+			String result = util.getContent(url_graph_version, headers_json, HttpCookies.globalCookiesWithFingerprint());
+			Logger.println(url_graph_version);
+			Logger.println(result);
+			String graph_version = new JSONObject(result).getJSONObject("data").getJSONObject("interaction").optString("graph_version");
+			Logger.println(graph_version);
+			List<List<StoryClipInfo>> story_list = new ArrayList<>();
+			List<StoryClipInfo> originStory = new ArrayList<StoryClipInfo>();
+			StoryClipInfo storyClip = new StoryClipInfo(cid);
+			originStory.add(storyClip);
+			HashSet<StoryClipInfo> node_list = new HashSet<>();
+			// 从根节点，一直遍历到子节点，找到所有故事线，放到story_list
+			collectStoryList(bvId, "", graph_version, originStory, story_list, node_list);
+			LinkedHashMap<Long, ClipInfo> clipMap = storyList2Map(bvId, videoFormat, getVideoLink, viInfo,
+					story_list);
+			viInfo.setClips(clipMap);
+			viInfo.print();
+			return viInfo;
 		} else {
 			LinkedHashMap<Long, ClipInfo> clipMap = new LinkedHashMap<Long, ClipInfo>();
 			int[] qnListDefault = null;
@@ -143,6 +166,7 @@ public abstract class AbstractBaseParser implements IInputParser {
 					}
 					clip.setLinks(links);
 				} catch (Exception e) {
+					e.printStackTrace();
 					clip.setLinks(links);
 				}
 
@@ -154,23 +178,30 @@ public abstract class AbstractBaseParser implements IInputParser {
 		return viInfo;
 	}
 
-	/**
-	 * 使用https://api.bilibili.com/pgc/player/web/playurl
-	 * 
-	 * @external input HttpRequestUtil util
-	 * @param bvId
-	 * @param cid
-	 * @return
-	 */
 	public int[] getVideoQNList(String bvId, String cid) {
+		switch (Global.infoQueryStrategy) {
+		case "tryNormalTypeFirst":
+			return getVideoQNList_TryNormalTypeFirst(bvId, cid);
+		case "judgeTypeFirst":
+			return getVideoQNList_JudgeTypeFirst(bvId, cid);
+		default:
+			return new int[] { 120, 116, 112, 80, 74, 64, 32, 16 };
+		}
+	}
+	
+	private int[] getVideoQNList_JudgeTypeFirst(String bvId, String cid) {
 		HttpHeaders headers = new HttpHeaders();
 		JSONArray jArr = null;
 		// 先判断类型
-		String url = "https://api.bilibili.com/x/web-interface/view/detail?aid=&jsonp=jsonp&callback=__jp0&bvid="
+		// https://api.bilibili.com/x/web-interface/wbi/view/detail?platform=web&bvid=%s&&need_operation_card=1&web_rm_repeat=1&need_elec=1
+		String url = "https://api.bilibili.com/x/web-interface/wbi/view/detail?platform=web&bvid="
 				+ bvId;
+		url += API.genDmImgParams();
+		url = API.encWbi(url);
 		HashMap<String, String> header = headers.getBiliJsonAPIHeaders(bvId);
-		String callBack = util.getContent(url, header);
-		JSONObject infoObj = new JSONObject(callBack.substring(6, callBack.length() - 2)).getJSONObject("data")
+		String callBack = util.getContent(url, header, HttpCookies.globalCookiesWithFingerprint());
+		Logger.println(callBack);
+		JSONObject infoObj = new JSONObject(callBack).getJSONObject("data")
 				.getJSONObject("View");
 		Long aid = infoObj.optLong("aid");
 
@@ -179,8 +210,8 @@ public abstract class AbstractBaseParser implements IInputParser {
 			url = "https://api.bilibili.com/x/player/playurl?cid=%s&bvid=%s&qn=%d&type=&otype=json&fnver=0&fnval=4048&fourk=1";
 			url = String.format(url, cid, bvId, 32);
 			Logger.println(url);
-			String json = util.getContent(url, headers.getBiliJsonAPIHeaders(bvId), HttpCookies.getGlobalCookies());
-			System.out.println(json);
+			String json = util.getContent(url, headers.getBiliJsonAPIHeaders(bvId), HttpCookies.globalCookiesWithFingerprint());
+			Logger.println(json);
 			jArr = new JSONObject(json).getJSONObject("data").getJSONArray("accept_quality");
 		} else {
 			// 非普通类型
@@ -188,8 +219,38 @@ public abstract class AbstractBaseParser implements IInputParser {
 			url = String.format(url, aid, cid, 32);
 			Logger.println(url);
 			String json = util.getContent(url, headers.getBiliJsonAPIHeaders("av" + aid),
-					HttpCookies.getGlobalCookies());
-			System.out.println(json);
+					HttpCookies.globalCookiesWithFingerprint());
+			Logger.println(json);
+			jArr = new JSONObject(json).getJSONObject("result").getJSONArray("accept_quality");
+		}
+		int qnList[] = new int[jArr.length()];
+		for (int i = 0; i < qnList.length; i++) {
+			qnList[i] = jArr.getInt(i);
+			// Logger.println(qnList[i]);
+		}
+		return qnList;
+	}
+	
+	private int[] getVideoQNList_TryNormalTypeFirst(String bvId, String cid) {
+		HttpHeaders headers = new HttpHeaders();
+		JSONArray jArr = null;
+		try {
+			// 普通类型
+			String url = "https://api.bilibili.com/x/player/playurl?cid=%s&bvid=%s&qn=%d&type=&otype=json&fnver=0&fnval=4048&fourk=1";
+			url = String.format(url, cid, bvId, 32);
+			Logger.println(url);
+			String json = util.getContent(url, headers.getBiliJsonAPIHeaders(bvId), HttpCookies.globalCookiesWithFingerprint());
+			Logger.println(json);
+			jArr = new JSONObject(json).getJSONObject("data").getJSONArray("accept_quality");
+		} catch (Exception e) {
+			// 非普通类型
+			long aid = ConvertUtil.Bv2Av(bvId);
+			String url = "https://api.bilibili.com/pgc/player/web/playurl?fnval=4048&fnver=0&fourk=1&otype=json&avid=%d&cid=%s&qn=%s";
+			url = String.format(url, aid, cid, 32);
+			Logger.println(url);
+			String json = util.getContent(url, headers.getBiliJsonAPIHeaders("av" + aid),
+					HttpCookies.globalCookiesWithFingerprint());
+			Logger.println(json);
 			jArr = new JSONObject(json).getJSONObject("result").getJSONArray("accept_quality");
 		}
 		int qnList[] = new int[jArr.length()];
@@ -238,7 +299,7 @@ public abstract class AbstractBaseParser implements IInputParser {
 		String url = String.format("https://www.bilibili.com/audio/music-service-c/url?songid=%s&privilege=2&quality=%d&mid=&platform=web", auIdNum, qn);
 		Logger.println(url);
 		HashMap<String, String> headers = new HttpHeaders().getCommonHeaders();
-		String r = util.getContent(url, headers, HttpCookies.getGlobalCookies());
+		String r = util.getContent(url, headers, HttpCookies.globalCookiesWithFingerprint());
 		Logger.println(r);
 		JSONObject data = new JSONObject(r).getJSONObject("data");
 		int realQn = data.optInt("type");
@@ -250,15 +311,15 @@ public abstract class AbstractBaseParser implements IInputParser {
 	}
 	
 	protected String getVideoSubtitleLink(String bvId, String cid, int qn) {
-		String url = String.format("https://api.bilibili.com/x/player.so?id=cid:%s&bvid=%s", cid, bvId);
+		String url = String.format("https://api.bilibili.com/x/player/wbi/v2?bvid=%s&cid=%s&isGaiaAvoided=false", bvId, cid);
+		url += API.genDmImgParams();
+		url = API.encWbi(url);
 		Logger.println(url);
 		HashMap<String, String> headers_json = new HttpHeaders().getBiliJsonAPIHeaders(bvId);
-		String xml = util.getContent(url, headers_json, HttpCookies.getGlobalCookies());
-		Pattern p = Pattern.compile("<subtitle>(.*?)</subtitle>");
-		Matcher matcher = p.matcher(xml);
-		if (matcher.find()) {
-			paramSetter.setRealQN(qn);
-			JSONArray subList = new JSONObject(matcher.group(1)).getJSONArray("subtitles");
+		String result = util.getContent(url, headers_json, HttpCookies.globalCookiesWithFingerprint());
+		paramSetter.setRealQN(qn);
+		try {
+			JSONArray subList = new JSONObject(result).getJSONObject("data").getJSONObject("subtitle").getJSONArray("subtitles");
 			for (int i = 0; i < subList.length(); i++) {
 				JSONObject sub = subList.getJSONObject(i);
 				String subLang = sub.getString("lan");
@@ -266,11 +327,12 @@ public abstract class AbstractBaseParser implements IInputParser {
 					return "https:" + sub.getString("subtitle_url");
 				}
 			}
-
+			
 			return "https:" + subList.getJSONObject(0).getString("subtitle_url");
+		} catch (Exception e) {
+			String tips = Global.isLogin? "未能找到字幕 " + bvId : "未能找到字幕，这可能是没有登录造成的。" + bvId;
+			throw new NoSubtitleException(tips, e);
 		}
-
-		return null;
 	}
 
 	/**
@@ -290,15 +352,29 @@ public abstract class AbstractBaseParser implements IInputParser {
 		// 根据downloadFormat确定fnval
 		String fnval = (downloadFormat & 0x01) == Global.MP4? "4048" : "2";
 		// 先判断类型
-		String url = "https://api.bilibili.com/x/web-interface/view/detail?aid=&jsonp=jsonp&callback=__jp0&bvid="
+		Long aid; boolean isNormalType;
+		String url = "https://api.bilibili.com/x/web-interface/wbi/view/detail?platform=web&bvid="
 				+ bvId;
+		url += API.genDmImgParams();
+		url = API.encWbi(url);
 		HashMap<String, String> header = headers.getBiliJsonAPIHeaders(bvId);
-		String callBack = util.getContent(url, header);
-		JSONObject infoObj = new JSONObject(callBack.substring(6, callBack.length() - 2)).getJSONObject("data")
-				.getJSONObject("View");
-		Long aid = infoObj.optLong("aid");
-
-		if (infoObj.optString("redirect_url").isEmpty()) {
+		String callBack = util.getContent(url, header, HttpCookies.globalCookiesWithFingerprint());
+		JSONObject detailRaw = new JSONObject(callBack);
+		if(detailRaw.optInt("code") == -403) {
+			aid = ConvertUtil.Bv2Av(bvId);
+			String detailUrl = String.format("https://api.bilibili.com/x/v3/fav/resource/infos?resources=%d:2&platform=web&folder_mid=&folder_id=", aid);
+			String detailJson = util.getContent(detailUrl, header, HttpCookies.globalCookiesWithFingerprint());
+			Logger.println(detailUrl);
+			Logger.println(detailJson);
+			JSONObject detailObj = new JSONObject(detailJson).getJSONArray("data").getJSONObject(0);
+			isNormalType = detailObj.getInt("attr") != 2; // 0 普通 16 互动视频
+		} else {
+			JSONObject infoObj = detailRaw.getJSONObject("data")
+					.getJSONObject("View");
+			aid = infoObj.optLong("aid");
+			isNormalType = infoObj.optString("redirect_url").isEmpty();
+		}
+		if (isNormalType) {
 			String trylookTail = Global.isLogin ? "" : "&try_look=1";
 			// 普通类型
 			url = downloadFormat == 2 ? 
@@ -310,17 +386,17 @@ public abstract class AbstractBaseParser implements IInputParser {
 			url = String.format(url, cid, bvId, qn, fnval);
 			url = API.encWbi(url);
 			Logger.println(url);
-//			List cookie = downloadFormat == 2 ? null : HttpCookies.getGlobalCookies();
-			List<HttpCookie> cookie = HttpCookies.getGlobalCookies();
+//			List cookie = downloadFormat == 2 ? null : HttpCookies.globalCookiesWithFingerprint();
+			List<HttpCookie> cookie = HttpCookies.globalCookiesWithFingerprint();
 			String json = util.getContent(url, headers.getBiliJsonAPIHeaders(bvId), cookie);
-			System.out.println(json);
+			Logger.println(json);
 			jObj = new JSONObject(json).getJSONObject("data");
 		} else {
 			// 非普通类型
 			url = "https://api.bilibili.com/pgc/player/web/playurl?fnver=0&fourk=1&otype=json&avid=%s&cid=%s&qn=%s&fnval=%s";
 			url = String.format(url, aid, cid, qn, fnval);
 			String json = util.getContent(url, headers.getBiliJsonAPIHeaders("av" + aid),
-					HttpCookies.getGlobalCookies());
+					HttpCookies.globalCookiesWithFingerprint());
 			Logger.println(url);
 			Logger.println(json);
 			jObj = new JSONObject(json).getJSONObject("result");
@@ -338,9 +414,12 @@ public abstract class AbstractBaseParser implements IInputParser {
 			}
 		}
 		paramSetter.setRealQN(linkQN);
-		System.out.println("查询质量为:" + qn + "的链接, 得到质量为:" + linkQN + "的链接");
+		String tips = String.format("%s:%s - 查询质量为: %d的链接, 得到质量为: %d的链接", bvId, cid, qn, linkQN);
+		Logger.println(tips);
 		if(Global.alertIfQualityUnexpected && linkQN < 64 && qn > linkQN && Global.isLogin) {
-			throw new QualityTooLowException(bvId + " : " + cid + " - 查询质量为:" + qn + "的链接, 得到质量为:" + linkQN + "的链接");
+			String notes = tips + "\n该视频的最高画质清晰度较低，请更换相匹配的优先清晰度之后再进行尝试。\n" 
+					+ "如果你认为此处应当继续下载，而不是报错，请在配置页搜索 qualityUnexpected 并进行配置\n";
+			throw new QualityTooLowException(notes);
 		}
 		try {
 			return parseType1(jObj, linkQN, headers.getBiliWwwM4sHeaders(bvId));
@@ -378,7 +457,7 @@ public abstract class AbstractBaseParser implements IInputParser {
 		Logger.println(url_node);
 		HashMap<String, String> headers_gv = new HashMap<>();
 		headers_gv.put("Referer", "https://www.bilibili.com/video/" + bvid);
-		String str_nodeInfo = util.getContent(url_node, headers_gv, HttpCookies.getGlobalCookies());
+		String str_nodeInfo = util.getContent(url_node, headers_gv, HttpCookies.globalCookiesWithFingerprint());
 		Logger.println(str_nodeInfo);
 		JSONObject nodeInfo = new JSONObject(str_nodeInfo).getJSONObject("data");
 		JSONArray questions = nodeInfo.optJSONObject("edges").optJSONArray("questions");

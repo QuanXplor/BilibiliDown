@@ -28,6 +28,7 @@ import javax.swing.JTextField;
 
 import nicelee.bilibili.INeedAV;
 import nicelee.bilibili.model.FavList;
+import nicelee.bilibili.util.Logger;
 import nicelee.ui.item.MJButton;
 import nicelee.ui.item.MJTabVideo;
 import nicelee.ui.item.MJTextField;
@@ -144,8 +145,12 @@ public class TabIndex extends JPanel implements ActionListener, MouseListener, I
 		}
 	}
 	@Override
-	public void paintComponent(Graphics g) {
-//		// super.paintComponent(g);
+	public void paintComponent(Graphics og) {
+		if (ui == null || og == null) {
+			return;
+		}
+		// https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/swing002.html#JSTGD472
+		Graphics g = og.create();
 		Image img = backgroundIcon.getImage();
 		int width = img.getWidth(this.getParent());
 		int height = img.getHeight(this.getParent());
@@ -165,6 +170,11 @@ public class TabIndex extends JPanel implements ActionListener, MouseListener, I
 			g.drawImage(backgroundIcon.getImage(), 0, 0, this.getSize().width, this.getSize().height, this.getParent());
 		}
 		this.setOpaque(false);
+		try {
+            ui.update(g, this);
+        } finally {
+        	g.dispose();
+        }
 	}
 	
 	/**
@@ -199,17 +209,17 @@ public class TabIndex extends JPanel implements ActionListener, MouseListener, I
 		if(!placeHolder.equals(avId)) {
 			INeedAV iNeedAV = new INeedAV();
 			avId = iNeedAV.getValidID(avId);
-			System.out.println("当前解析的id为：");
-			System.out.println(avId);
-			if(avId.contains(" ")) {
-				String avs[] = avId.trim().split(" ");
-				System.out.println("将弹出窗口个数： " + avs.length);
-				for(String av : avs) {
-					popVideoInfoTab(av);
-				}
-			}else {
-				popVideoInfoTab(avId);
-			}
+			Logger.println("当前解析的id为：" + avId);
+//			if(avId.contains(" ")) {
+//				String avs[] = avId.trim().split(" ");
+//				System.out.println("将弹出窗口个数： " + avs.length);
+//				for(String av : avs) {
+//					popVideoInfoTab(av);
+//				}
+//			}else {
+//				popVideoInfoTab(avId);
+//			}
+			popVideoInfoTab(avId);
 		}
 		
 	}

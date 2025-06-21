@@ -7,7 +7,6 @@ import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.concurrent.Executors;
 
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
@@ -18,6 +17,7 @@ import javax.swing.JScrollPane;
 
 import nicelee.ui.item.DownloadInfoPanel;
 import nicelee.ui.item.MJButton;
+import nicelee.ui.thread.DownloadExecutors;
 
 public class TabDownload extends JPanel implements ActionListener {
 
@@ -99,8 +99,12 @@ public class TabDownload extends JPanel implements ActionListener {
 	}
 
 	@Override
-	public void paintComponent(Graphics g) {
-//		// super.paintComponent(g);
+	public void paintComponent(Graphics og) {
+		if (ui == null || og == null) {
+			return;
+		}
+		// https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/swing002.html#JSTGD472
+		Graphics g = og.create();
 		Image img = backgroundIcon.getImage();
 		int width = img.getWidth(this.getParent());
 		int height = img.getHeight(this.getParent());
@@ -120,6 +124,11 @@ public class TabDownload extends JPanel implements ActionListener {
 			g.drawImage(backgroundIcon.getImage(), 0, 0, this.getSize().width, this.getSize().height, this.getParent());
 		}
 		this.setOpaque(false);
+		try {
+            ui.update(g, this);
+        } finally {
+        	g.dispose();
+        }
 	}
 
 	@Override
@@ -157,7 +166,7 @@ public class TabDownload extends JPanel implements ActionListener {
 						dp.stopTask();
 					}
 					int fixPool = Global.downloadPoolSize;
-					Global.downLoadThreadPool = Executors.newFixedThreadPool(fixPool);
+					Global.downLoadThreadPool = DownloadExecutors.newPriorityFixedThreadPool(fixPool);
 					btnContinue.setEnabled(true);
 					btnStop.setEnabled(true);
 					btnDeleteAll.setEnabled(true);

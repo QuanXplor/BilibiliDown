@@ -38,8 +38,11 @@ public class M4SDownloader extends FLVDownloader{
 		HttpHeaders header = new HttpHeaders();
 		boolean audioOnly = url.startsWith("#");
 		String links[] = url.split("#");
+		for(int i=0; i<links.length; i++) {
+			links[i] = tryBetterUrl(links[i]);
+		}
 		String fName = avId + "-" + qn + "-p" + page;
-		String suffix = ".mp4"; // TODO audioOnly? ".aac": ".mp4";  // mp4 / aac / flac
+		String suffix = audioOnly? Global.suffix4AudioOnly : ".mp4";  // mp4 / aac / flac
 		String videoName = fName + "_video.m4s";
 		String audioName = fName + "_audio.m4s";
 		String dstName = fName + suffix;
@@ -50,11 +53,7 @@ public class M4SDownloader extends FLVDownloader{
 			if (util.download(links[1], audioName, header.getBiliWwwM4sHeaders(avId))) {
 				convertingStatus = StatusEnum.PROCESSING;
 				boolean result = CmdUtil.convert(null, audioName, dstName);
-				if (result)
-					convertingStatus = StatusEnum.SUCCESS;
-				else
-					convertingStatus = StatusEnum.FAIL;
-				return result;
+				return throwErrorIfNotConvertOk(result, audioName);
 			}
 			return false;
 		} 
@@ -71,11 +70,7 @@ public class M4SDownloader extends FLVDownloader{
 				totalTaskCnt = currentTask = 1;
 				convertingStatus = StatusEnum.PROCESSING;
 				boolean result = CmdUtil.convert(videoName, null, dstName);
-				if (result)
-					convertingStatus = StatusEnum.SUCCESS;
-				else
-					convertingStatus = StatusEnum.FAIL;
-				return result;
+				return throwErrorIfNotConvertOk(result, videoName);
 			}else if (util.download(links[1], audioName, header.getBiliWwwM4sHeaders(avId))) {
 				// 如下载成功，统计数据后重置
 				sumSuccessDownloaded += util.getTotalFileSize();
@@ -83,12 +78,7 @@ public class M4SDownloader extends FLVDownloader{
 				// 下载完毕后,进行合并
 				convertingStatus = StatusEnum.PROCESSING;
 				boolean result = CmdUtil.convert(videoName, audioName, dstName);
-				if (result) {
-					convertingStatus = StatusEnum.SUCCESS;
-				} else {
-					convertingStatus = StatusEnum.FAIL;
-				}
-				return result;
+				return throwErrorIfNotConvertOk(result, dstName);
 			}
 			return false;
 		}

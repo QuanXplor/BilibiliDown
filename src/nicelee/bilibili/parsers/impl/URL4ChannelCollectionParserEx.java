@@ -13,15 +13,19 @@ import nicelee.bilibili.annotations.Bilibili;
 import nicelee.bilibili.enums.VideoQualityEnum;
 import nicelee.bilibili.model.ClipInfo;
 import nicelee.bilibili.model.VideoInfo;
+import nicelee.bilibili.util.HttpCookies;
 import nicelee.bilibili.util.HttpHeaders;
 import nicelee.bilibili.util.Logger;
 
 /**
  *  针对的是如下类型的url
- * https://space.bilibili.com/593987248/channel/collectiondetail?sid=508765
+ * 过时，网页不再出现这种链接 https://space.bilibili.com/593987248/channel/collectiondetail?sid=508765
  * https://space.bilibili.com/{spaceID}/favlist?fid=405855&ftype=collect&ctype=21
- *
+ * https://space.bilibili.com/3493090176272742/lists/2729326?type=season
+ * 
+ *		若是不从网页里面扣，可试一试下面两个api，以后有时间再做
  *		- https://api.bilibili.com/x/space/fav/season/list?season_id=405855&pn=2&ps=20&jsonp=jsonp
+ *		- https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?mid=3493090176272742&season_id=2729326&sort_reverse=false&page_size=30&page_num=2&web_location=333.1387
  */
 @Bilibili(name = "URL4ChannelCollectionParserEx", weight = 77, ifLoad = "listAll", note = "UP 某合集的视频解析")
 public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<VideoInfo> {
@@ -29,6 +33,8 @@ public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<Video
 	private final static Pattern pattern = Pattern
 			.compile("space\\.bilibili\\.com/[0-9]+/channel/collectiondetail\\?sid=([0-9]+)");
 	private final static Pattern pattern2 = Pattern.compile("space\\.bilibili\\.com/[0-9]+/favlist\\?.*fid=([0-9]+).*ftype=collect");
+	private final static Pattern pattern3 = Pattern
+			.compile("space\\.bilibili\\.com/[0-9]+/lists/([0-9]+)\\?type=season");
 	private String sid;
 
 	public URL4ChannelCollectionParserEx(Object... obj) {
@@ -39,13 +45,19 @@ public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<Video
 	public boolean matches(String input) {
 		matcher = pattern.matcher(input);
 		if (matcher.find()) {
-			System.out.println("UP 某合集的视频解析(优化版) ...pattern");
+			System.out.println("UP 某合集的视频解析(爬html版) ...pattern");
 			sid = matcher.group(1);
 			return true;
 		}
 		matcher = pattern2.matcher(input);
 		if (matcher.find()) {
-			System.out.println("UP 某合集的视频解析(优化版) ...pattern2");
+			System.out.println("UP 某合集的视频解析(爬html版) ...pattern2");
+			sid = matcher.group(1);
+			return true;
+		}
+		matcher = pattern3.matcher(input);
+		if (matcher.find()) {
+			System.out.println("UP 某合集的视频解析(爬html版) ...pattern3");
 			sid = matcher.group(1);
 			return true;
 		}
@@ -77,17 +89,20 @@ public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<Video
 		try {
 			// 先找到部分信息和第一个BV
 			// 第一个BV的页面里面有所有的信息
-			String urlFormat = "https://api.bilibili.com/x/polymer/space/seasons_archives_list?mid=%s&season_id=%s&sort_reverse=false&page_num=%d&page_size=%d";
+			// String urlFormat = "https://api.bilibili.com/x/space/fav/season/list?season_id=%s&pn=%d&ps=%d&jsonp=jsonp";
+			// String url = String.format(urlFormat, sid, 1, 1);
+			String urlFormat = "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?mid=%s&season_id=%s&sort_reverse=false&page_num=%d&page_size=%d";
 			String url = String.format(urlFormat, "1234567", sid, 1, 1);
-			String json = util.getContent(url, new HttpHeaders().getCommonHeaders("api.bilibili.com"));
+			String json = util.getContent(url, new HttpHeaders().getCommonHeaders("api.bilibili.com"), HttpCookies.globalCookiesWithFingerprint());
 			Logger.println(url);
+			Logger.println(json);
 			JSONObject jobj = new JSONObject(json).getJSONObject("data");
 			JSONObject jData = jobj.getJSONObject("meta");
 			String firstBV = jobj.getJSONArray("archives").getJSONObject(0).getString("bvid");
 
 			// 在第一部BV里面补全up的信息，并得到所有合集
 			String urlBV = "https://www.bilibili.com/video/" + firstBV;
-			String html = util.getContent(urlBV, new HttpHeaders().getCommonHeaders("www.bilibili.com"));
+			String html = util.getContent(urlBV, new HttpHeaders().getCommonHeaders("www.bilibili.com"), HttpCookies.globalCookiesWithFingerprint());
 			int begin = html.indexOf("window.__INITIAL_STATE__=");
 			int end = html.indexOf(";(function()", begin);
 			String result = html.substring(begin + 25, end);
@@ -104,7 +119,10 @@ public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<Video
 			}
 
 			LinkedHashMap<Long, ClipInfo> map = pageQueryResult.getClips();
-			JSONArray sections = obj1.getJSONArray("sections");
+			JSONArray sections = obj1.optJSONArray("sections");
+			if(sections == null) {
+				sections = obj1.getJSONObject("sectionsInfo").getJSONArray("sections");
+			}
 			boolean stop = false;
 			for (int order = 0, sIndex = 0; sIndex < sections.length(); sIndex++) {
 				JSONArray episodes = sections.getJSONObject(sIndex).getJSONArray("episodes");
@@ -156,7 +174,7 @@ public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<Video
 			}
 			return true;
 		} catch (Exception e) {
-			// e.printStackTrace();
+			e.printStackTrace();
 			return false;
 		}
 	}

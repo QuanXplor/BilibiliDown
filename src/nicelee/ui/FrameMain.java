@@ -16,18 +16,17 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.UIManager;
 
-import nicelee.bilibili.INeedAV;
 import nicelee.bilibili.INeedLogin;
 import nicelee.bilibili.PackageScanLoader;
-import nicelee.bilibili.model.VideoInfo;
 import nicelee.bilibili.util.CmdUtil;
 import nicelee.bilibili.util.ConfigUtil;
 import nicelee.bilibili.util.HttpCookies;
-import nicelee.bilibili.util.Logger;
 import nicelee.bilibili.util.RepoUtil;
 import nicelee.bilibili.util.ResourcesUtil;
+import nicelee.bilibili.util.SysUtil;
 import nicelee.ui.item.MJTitleBar;
-import nicelee.ui.thread.*;
+import nicelee.ui.thread.BatchDownloadRbyRThread;
+import nicelee.ui.thread.DownloadRunnable;
 
 import static nicelee.ui.Global.batchDownloadConfigTimerSwitch;
 
@@ -43,9 +42,7 @@ public class FrameMain extends JFrame {
 	public static void main(String[] args) {
 		System.out.println();
 		// System.getProperties().setProperty("file.encoding", "utf-8");
-		String osName = System.getProperty("os.name");
-		boolean isWindows = osName.startsWith("Windows");
-		System.out.println(osName);
+		boolean isFFmpegSupported = SysUtil.surportFFmpegOfficially();
 		System.out.println("Java version:" + System.getProperty("java.specification.version"));
 		System.out.println(ResourcesUtil.baseDirectory());
 		// 读取配置文件
@@ -55,6 +52,8 @@ public class FrameMain extends JFrame {
 			System.out.println(Global.version);
 			System.exit(0);
 		}
+		// 初始化 - 检查对数据文件夹是否有“写”的权限
+		InitCheck.checkFileAccess();
 		// 显示过渡动画
 		Global.frWaiting = new FrameWaiting();
 		Global.frWaiting.start();
@@ -70,14 +69,14 @@ public class FrameMain extends JFrame {
 				ConfigUtil.deleteLock();
 			}));
 		}
-
+		
+		nicelee.bilibili.util.custom.System.init(Global.syncServerTime);
 //		// 如果存在hosts文件，那么使之生效
 //		if (HostSetUtil.readHostsFromFile("config/hosts.config")) {
 //			HostSetUtil.injectHosts();
 //		}
 		// 初始化主题
 		initUITheme();
-
 		// 初始化UI
 		FrameMain main = new FrameMain();
 		main.InitUI();
@@ -108,28 +107,7 @@ public class FrameMain extends JFrame {
 		loginTh.start();
 
 		// 初始化 - ffmpeg环境判断
-		CmdUtil.DEFAULT_WORKING_DIR = ResourcesUtil.baseDirFile();
-		String ffmpeg = ResourcesUtil.resolve(Global.ffmpegPath);
-		String[] cmd = new String[] { ffmpeg, "-version" };
-		if (!CmdUtil.run(cmd)) {
-			if (isWindows) {
-				Object[] options = { "是", "否" };
-				int m = JOptionPane.showOptionDialog(null,
-						"检测到当前没有ffmpeg环境, mp4及小部分flv文件将无法转码或合并.\r\n     是否下载ffmpeg(自编译, 3M左右)?", "请选择：",
-						JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
-				Logger.println(m);
-				if (m == 0) {
-					VideoInfo avInfo = new INeedAV().getVideoDetail("ffmpeg", 0, false);
-					DownloadRunnable downThread = new DownloadRunnable(avInfo, avInfo.getClips().get(1234L), 0);
-					Global.queryThreadPool.execute(downThread);
-				}
-			} else {
-				JOptionPane.showMessageDialog(null, "当前没有ffmpeg环境，大部分mp4及小部分flv文件将无法转码或合并", "请注意!!",
-						JOptionPane.WARNING_MESSAGE);
-			}
-		} else {
-			CmdUtil.FFMPEG_PATH = ffmpeg;
-		}
+		InitCheck.checkFFmpeg(isFFmpegSupported);
 
 		//
 		if (Global.saveToRepo) {
@@ -140,6 +118,19 @@ public class FrameMain extends JFrame {
 //		qr.dispose();
 		// 预扫描加载类
 		PackageScanLoader.validParserClasses.isEmpty();
+		if(Global.batchDownloadRbyRRunOnStartup) {
+			// 开始按计划周期性批量下载
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					// 等待相关线程运行完毕
+					try {
+						loginTh.join();
+					} catch (InterruptedException e) {}
+					new BatchDownloadRbyRThread(Global.batchDownloadConfigName).start();
+				}
+			}).start();
+		}
 		if(batchDownloadConfigTimerSwitch) {
 			new TimerBatchDownloadThread().start();
 		}

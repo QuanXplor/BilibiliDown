@@ -1,6 +1,8 @@
 package nicelee.ui.thread;
 
+import java.awt.Component;
 import java.awt.Desktop;
+import java.awt.HeadlessException;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
@@ -87,7 +89,13 @@ public class BatchDownloadThread extends Thread implements Callable<Map<String,O
 					if(!isPageable && page >= 2)
 						break;
 					String sp = validStr + " p=" + page;
-					VideoInfo avInfo = ina.getVideoDetail(sp, Global.downloadFormat, false);
+					VideoInfo avInfo = null;
+					try {
+						avInfo = ina.getVideoDetail(sp, Global.downloadFormat, false);
+					} catch (Exception e) {
+						e.printStackTrace();
+						break;
+					}
 					Collection<ClipInfo> clips = avInfo.getClips().values();
 					if (clips.size() == 0)
 						break;
@@ -97,6 +105,7 @@ public class BatchDownloadThread extends Thread implements Callable<Map<String,O
 						if (batch.matchStopCondition(clip, page)) {
 							// 判断边界BV是否要下载
 							if (batch.isIncludeBoundsBV() && batch.matchDownloadCondition(clip, page)) {
+								addTask(clip);
 								Callable<DownloadInfoPanel> downThread = new DownloadRunnable(avInfo, clip,
 										VideoQualityEnum.getQN(Global.menu_qn),showAlert);
 								Future<DownloadInfoPanel> future = Global.queryThreadPool.submit(downThread);
@@ -107,6 +116,7 @@ public class BatchDownloadThread extends Thread implements Callable<Map<String,O
 						}
 						// 判断是否要下载
 						if (batch.matchDownloadCondition(clip, page)) {
+							addTask(clip);
 							Callable<DownloadInfoPanel> downThread = new DownloadRunnable(avInfo, clip,
 									VideoQualityEnum.getQN(Global.menu_qn),showAlert);
 							Future<DownloadInfoPanel> future = Global.queryThreadPool.submit(downThread);
@@ -120,7 +130,7 @@ public class BatchDownloadThread extends Thread implements Callable<Map<String,O
 				Thread.sleep(1000);
 				Logger.printf("[url:%s] 任务完毕", batch.getUrl());
 				if (showAlert || batch.isAlertAfterMissionComplete()) {
-					JOptionPane.showMessageDialog(null, "url:" + batch.getUrl(), "任务完毕!! " + batch.getRemark(),
+					showMessageDialog(null, "url:" + batch.getUrl(), "任务完毕!! " + batch.getRemark(),
 							JOptionPane.INFORMATION_MESSAGE);
 				}
 			}
@@ -179,7 +189,7 @@ public class BatchDownloadThread extends Thread implements Callable<Map<String,O
 			}
 
 			if(showAlert) {
-				JOptionPane.showMessageDialog(null, "一键下载完毕", "OK", JOptionPane.PLAIN_MESSAGE);
+			showMessageDialog(null, "一键下载完毕", "OK", JOptionPane.PLAIN_MESSAGE);
 			}
 		} catch (BilibiliError e) {
 			if(showAlert) {
@@ -219,4 +229,11 @@ public class BatchDownloadThread extends Thread implements Callable<Map<String,O
 		}
 	}
 
+	public void addTask(ClipInfo clip) {
+	}
+	
+	public void showMessageDialog(Component parentComponent, String message, String title, int messageType)
+			throws HeadlessException {
+		JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
+	}
 }

@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import nicelee.bilibili.util.custom.System;
 
 import nicelee.ui.item.JOptionPane;
 
@@ -37,7 +38,11 @@ public class RepoUtil {
 		definitionStrictMode = Global.repoInDefinitionStrictMode;
 		if (fRepo == null || refresh) {
 			fRepo = ResourcesUtil.sourceOf("config/repo.config");
-			standardAvPattern = Pattern.compile("^((?:av|h|BV|season|au|edd_)[0-9a-zA-Z_]+)-([0-9]+)(-p[0-9]+)$");
+			if(!fRepo.exists())
+				try {
+					fRepo.createNewFile();
+				} catch (IOException e1) {}
+			standardAvPattern = Pattern.compile("^((?:av|h|cv|opus|BV|season|au|edd_)[0-9a-zA-Z_]+)-([0-9]+)(-p[0-9]+)$");
 			int initialSize = (int) (233 / 0.75f);
 			try {
 				long fSize = fRepo.length();
@@ -90,7 +95,7 @@ public class RepoUtil {
 			return false;
 		}
 		System.out.println("查询记录" + avRecord);
-		if (avRecord.contains("-800-") || avRecord.contains("-801-")) {
+		if (avRecord.contains("-800-") || avRecord.contains("-801-") || avRecord.startsWith("FFmpeg")) {
 			return false;
 		}
 		if (definitionStrictMode) {

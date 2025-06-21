@@ -1,11 +1,9 @@
-* 新增(GUI): 菜单配置栏添加`下载前先查询记录?`配置项，更改后可临时开启/关闭仓库功能。重启后失效。  
-* 删除(GUI): 菜单配置栏删除`下载策略`配置项。  
-* 优化(GUI): [issues 165](https://github.com/nICEnnnnnnnLee/BilibiliDown/issues/165)点击`关闭全部Tab页`后，弹出提示框。  
-* 优化: [issues 167](https://github.com/nICEnnnnnnnLee/BilibiliDown/issues/167) 优先清晰度添加`字幕`/`弹幕`选项，用于快速批量下载。  
-    + 需要注意，`字幕`/`弹幕`不计入下载记录，因而也没有相应判断。  
-    + 需要注意，视频、对应字幕、弹幕的下载任务不能同时存在于下载面板。你需要清空下载任务以后再继续。    
-* 优化: 更新适用范围更广的AV和BV转换方式。
-* 优化: 代码和附件都镜像到了`Bitbucket`，程序里面也添加了镜像源。这意味着程序自升级门槛更低了。  
+* 优化：收藏图文增加`收藏时间`信息 #247
+* 优化：UP主频道列表支持更多链接类型
+* 修复：修复up主合集api变更导致的问题 #254
+* 修复：修复CV图片解析 #247
+* 移除：因Bitbucket政策更新，附件服务即将无法使用，故去除下载源 `Bitbucket`
+* 其它详见[V6.38...V6.39](https://github.com/nICEnnnnnnnLee/BilibiliDown/compare/V6.38...V6.39)
 <hr/>
 
-如果你是Win64用户,且没有java环境，请下载附件`*.win_x64_jre11.release.zip`
+如果你是Win64用户,且没有java环境，请下载附件`*.win_x64_jre11.release.zip`或 `*.win_x64.msi`

@@ -5,26 +5,26 @@ import java.util.Date;
 
 public class Logger {
 	private final static SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	/**
-	 * 测试用
-	 * @param str
-	 */
+	final static boolean mute;
+	static {
+		mute = !"true".equals(System.getProperty("bilibili.prop.log", "true"));
+	}
+
 	public static void print(Object str) {
+		if (mute)
+			return;
 		System.out.print(str);
 	}
-	/**
-	 * 测试用
-	 * @param str
-	 */
+
 	public static void println() {
+		if (mute)
+			return;
 		System.out.println();
 	}
-	
-	/**
-	 * 测试用
-	 * @param str
-	 */
+
 	public static void printf(String str, Object... obj) {
+		if (mute)
+			return;
 		StackTraceElement ele = Thread.currentThread().getStackTrace()[2];
 		String file = ele.getFileName();
 		file = file.substring(0, file.length() - 5);
@@ -34,12 +34,10 @@ public class Logger {
 		String result = String.format(logStr(), file, method, line, preStr);
 		System.out.println(result);
 	}
-	
-	/**
-	 * 测试用
-	 * @param str
-	 */
+
 	public static void println(String str) {
+		if (mute)
+			return;
 		StackTraceElement ele = Thread.currentThread().getStackTrace()[2];
 		String file = ele.getFileName();
 		file = file.substring(0, file.length() - 5);
@@ -48,11 +46,10 @@ public class Logger {
 		String result = String.format(logStr(), file, method, line, str);
 		System.out.println(result);
 	}
-	/**
-	 * 测试用
-	 * @param str
-	 */
+
 	public static void println(Object obj) {
+		if (mute)
+			return;
 		StackTraceElement ele = Thread.currentThread().getStackTrace()[2];
 		String file = ele.getFileName();
 		file = file.substring(0, file.length() - 5);

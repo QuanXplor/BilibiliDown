@@ -38,18 +38,22 @@ jobs:
     runs-on: ubuntu-latest
    
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         ref: ${{ github.event.ref }}
         
     - name: Set up JDK 1.8
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '8'  
      
     - name: Read tag_latest and Save build info
       id: tag_latest
+      env:
+        BUILD_TYPE: Beta
+        GITHUB_REPO: ${{ github.repository }}
+        GITHUB_RUN_ID: ${{ github.run_id }}
       run: |
         python ./.github/scripts/read_version_and_save_build_info.py
     
@@ -77,16 +81,6 @@ jobs:
       run: |
         chmod +x .github/scripts/upload_cloudinary.sh
         ./.github/scripts/upload_cloudinary.sh        
-        
-    - name: Upload release to bitbucket
-      env:
-        VERSION_NUMBER: ${{ steps.tag_latest.outputs.value }}
-        BITBUCKET_TOKEN: ${{ secrets.BITBUCKET_TOKEN }}
-      if: ${{ always() && env.BITBUCKET_TOKEN != '' && github.event.inputs.bitbucket == 'true'}}
-      run: |
-        chmod +x .github/scripts/upload_bitbucket.sh
-        ./.github/scripts/upload_bitbucket.sh                    
-            
             
     - name: Sync Push to Gitee
       env:

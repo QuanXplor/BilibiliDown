@@ -35,12 +35,12 @@ Bilibili 视频下载器，用于下载B站视频。
 + 本项目提供的`ffmpeg.exe`基于[nICEnnnnnnnLee/FFmpeg-Builds](https://github.com/nICEnnnnnnnLee/FFmpeg-Builds/blob/master/SPECIFIC_CHANGES.md)进行编译。  
     设置Github secret `FF_SPECIFIC_CONFIGURE`如下：  
 ```
---disable-debug --disable-doc --disable-ffplay --disable-ffprobe --enable-static --disable-shared --disable-network --disable-autodetect --disable-decoders --disable-gpl --disable-version3 --enable-decoder='h264,aac*,mp3*,mp4' --disable-encoders --disable-demuxers --enable-demuxer='concat,mov,m4v,flv,mp3' --disable-muxers --enable-muxer='flv,mp4,mp3' --enable-encoder='libmp3lame,mp3' --disable-parsers --enable-parser=h264 --disable-protocols --enable-protocol='concat,file' --disable-bsfs --enable-bsf='h264_metadata,h264_mp4toannexb' --disable-filters --enable-filter='concat,aresample' --disable-iconv --enable-small
+--disable-debug --disable-doc --disable-ffplay --disable-ffprobe --enable-static --disable-shared --disable-network --disable-autodetect --disable-decoders --disable-gpl --disable-version3 --enable-decoder='h264,aac*,mp3*,mp4,eac3,flac' --disable-encoders --disable-demuxers --enable-demuxer='concat,mov,m4v,flv,mp3,aac,m4a' --disable-muxers --enable-muxer='flv,mp4,mp3,adts' --enable-encoder='libmp3lame,mp3,aac' --disable-parsers --enable-parser=h264 --disable-protocols --enable-protocol='concat,file' --disable-bsfs --enable-bsf='h264_metadata,h264_mp4toannexb' --disable-filters --enable-filter='concat,aresample' --disable-iconv --enable-small
 ```
 
 + 本项目遵守开源协议`Apache 2.0`。  
 ```
-Copyright (C) 2019-2023 NiceLee. All Rights Reserved.
+Copyright (C) 2019-2024 NiceLee. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

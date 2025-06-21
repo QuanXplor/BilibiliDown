@@ -11,16 +11,16 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import nicelee.ui.item.JOptionPane;
+import nicelee.ui.thread.DownloadRunnableInternal;
+
 import javax.swing.JPanel;
 
 import nicelee.bilibili.INeedAV;
 import nicelee.bilibili.downloaders.Downloader;
 import nicelee.bilibili.enums.StatusEnum;
 import nicelee.bilibili.model.ClipInfo;
-import nicelee.bilibili.parsers.InputParser;
-import nicelee.bilibili.util.CmdUtil;
 import nicelee.bilibili.util.Logger;
-import nicelee.bilibili.util.RepoUtil;
+import nicelee.bilibili.util.custom.System;
 import nicelee.ui.Global;
 import nicelee.ui.TabDownload;
 
@@ -35,7 +35,6 @@ public class DownloadInfoPanel extends JPanel implements ActionListener {
 	int remark;
 	int qn;
 	int realqn;
-	public final String[] downloadPath=new String[1];
 
 	// 下载相关
 	public INeedAV iNeedAV;
@@ -247,48 +246,15 @@ public class DownloadInfoPanel extends JPanel implements ActionListener {
 	 */
 	public void continueTask() {
 		stopOnQueue = false;
-		String record = avid_qn + "-p" + page;
 		Downloader downloader = iNeedAV.getDownloader();
-		final DownloadInfoPanel dp = this;
 		// 如果正在下载 或 下载完毕，则不需要下载
 		StatusEnum status = downloader.currentStatus();
 		if (status != StatusEnum.DOWNLOADING && status != StatusEnum.SUCCESS && status != StatusEnum.PROCESSING) {
 			downloader.startTask();
-			Global.downLoadThreadPool.execute(new Runnable() {
-				@Override
-				public void run() {
-					if(downloader.currentStatus() == StatusEnum.NONE && dp.stopOnQueue) {
-						Logger.println("已经删除等待队列,无需再下载");
-						return;
-					}
-					if (downloader.currentStatus() == StatusEnum.STOP) {
-						Logger.println("已经人工停止,无需再下载");
-						return;
-					}
-					if(Global.reloadDownloadUrl && !avid.startsWith("h")){
-						InputParser parser = iNeedAV.getInputParser(avid);
-						url = parser.getVideoLink(avid, cid, realqn, Global.downloadFormat); //该步含网络查询， 可能较为耗时
-						if(realqn != parser.getVideoLinkQN()) {
-							Logger.println("清晰度链接已经改变，无法再重新下载");
-							iNeedAV.getUtil().stopDownloadAsFail();
-							return;
-						}
-					}
-					Logger.println("[重试]预期下载清晰度：" + qn + "实际清晰度：" + realqn);
-					// 开始下载
-					if (downloader.download(url, avid, realqn, page)) {
-						// 下载成功后保存到仓库
-						if (Global.saveToRepo) {
-							RepoUtil.appendAndSave(record);
-						}
-						synchronized (downloadPath) {
-							String path = CmdUtil.convertOrAppendCmdToRenameBat(avid_qn, formattedTitle, page);
-							downloadPath[0]=path;
-							downloadPath.notifyAll();
-						}
-					}
-				}
-			});
+			if(!Global.downLoadThreadPool.isShutdown()){
+				Global.downLoadThreadPool.execute(
+						new DownloadRunnableInternal(this, System.currentTimeMillis(), true, failCnt));
+			}
 		}
 	}
 
@@ -390,12 +356,24 @@ public class DownloadInfoPanel extends JPanel implements ActionListener {
 		this.avid = avid;
 	}
 
+	public String getCid() {
+		return cid;
+	}
+
 	public ClipInfo getClipInfo() {
 		return clipInfo;
 	}
 
 	public int getQn() {
 		return qn;
+	}
+
+	public int getRealqn() {
+		return realqn;
+	}
+
+	public void setRealqn(int realqn) {
+		this.realqn = realqn;
 	}
 
 }

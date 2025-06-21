@@ -36,6 +36,7 @@ import nicelee.bilibili.util.VersionManagerUtil;
 import nicelee.ui.FrameAbout;
 import nicelee.ui.Global;
 import nicelee.ui.TabSettings;
+import nicelee.ui.thread.BatchDownloadRbyRThread;
 import nicelee.ui.thread.BatchDownloadThread;
 import nicelee.ui.thread.CookieRefreshThread;
 import nicelee.ui.thread.DownloadRunnable;
@@ -81,6 +82,7 @@ public class MJMenuBar extends JMenuBar {
 		 * 创建二级 操作 子菜单
 		 */
 		JMenuItem batchDownload = new JMenuItem("一键下载");
+		JMenuItem batchDownloadRbyR = new JMenuItem("按计划周期下载");
 		JMenuItem reloadConfig = new JMenuItem("重新加载配置");
 		JMenuItem reloadRepo = new JMenuItem("重新加载仓库");
 		JMenuItem saveDownloading = new JMenuItem("保存下载任务");
@@ -114,6 +116,9 @@ public class MJMenuBar extends JMenuBar {
 		operMenu.add(doMultiDownMenuItem);
 		operMenu.addSeparator();
 		operMenu.add(loginRelated);
+		operMenu.addSeparator();
+		operMenu.add(batchDownloadRbyR);
+		
 		
 		/**
 		 * 创建二级 配置 子菜单
@@ -175,6 +180,19 @@ public class MJMenuBar extends JMenuBar {
 				}
 			}
 		}.build();
+		JMenu dForceReplaceHostMenuItem = new MJMenuWithRadioGroupBuilder("音视频链接替换host?", "替换", "不替换") {
+			@Override
+			public void onItemSelected(int itemIndex, JRadioButtonMenuItem item) {
+				Global.forceReplaceUposHost = itemIndex == 0;
+				Logger.println("音视频链接强制替换host:" + Global.forceReplaceUposHost);
+			}
+			
+			@Override
+			public void init(JRadioButtonMenuItem[] menuItems) {
+				int itemIndex = Global.forceReplaceUposHost ? 0 : 1;
+				menuItems[itemIndex].setSelected(true);
+			}
+		}.build();
 		
 		List<String> qnSelections = new ArrayList<>();
 		for (VideoQualityEnum item : VideoQualityEnum.values()) {
@@ -198,6 +216,27 @@ public class MJMenuBar extends JMenuBar {
 				}
 			}
 		}.build();
+		
+		String[] straOptions = { "tryNormalTypeFirst", "judgeTypeFirst", "returnFixedValue" };
+		String[] straOptionTips = { "先尝试普通类型，报错再尝试其它", "先判断类型再查询", "返回固定值" };
+		JMenu dQNQueryStrategyMenuItem = new MJMenuWithRadioGroupBuilder("可用清晰度查询策略", straOptionTips) {
+			
+			@Override
+			public void onItemSelected(int itemIndex, JRadioButtonMenuItem item) {
+				Global.infoQueryStrategy = straOptions[itemIndex];
+				Logger.println("可用清晰度查询策略为: " + straOptionTips[itemIndex]);
+			}
+			
+			@Override
+			public void init(JRadioButtonMenuItem[] menuItems) {
+				for(int i = 0; i < menuItems.length; i++) {
+					if(straOptions[i].equals(Global.infoQueryStrategy)) {
+						menuItems[i].setSelected(true);
+					}
+				}
+			}
+		}.build();
+		
 		File configDir = new File(ResourcesUtil.baseDirectory(), "config");
 		List<String> configFiles = new ArrayList<>();
 		configFiles.add(Global.batchDownloadConfigName);
@@ -263,7 +302,9 @@ public class MJMenuBar extends JMenuBar {
 		configMenu.add(dUseRepoMenuItem);
 		configMenu.add(dDashDownTypeMenuItem);
 		configMenu.add(dTypeReDownloadMenuItem);
+		configMenu.add(dForceReplaceHostMenuItem);
 		configMenu.add(dQNMenuItem);
+		configMenu.add(dQNQueryStrategyMenuItem);
 		configMenu.add(dBatchDownMenuItem);
 		configMenu.add(dUpdateMenuItem);
 		configMenu.add(dFFmpegMenuItem);
@@ -295,6 +336,22 @@ public class MJMenuBar extends JMenuBar {
 				new BatchDownloadThread(batchDownloadFileName).start();
 			}
 		});
+		// 按计划一键下载
+		batchDownloadRbyR.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				Object[] options = { "我要继续", "我再想想" };
+				String msg = "程序将会周期性的执行一键下载，是否继续";
+				int m = JOptionPane.showOptionDialog(null, msg, "警告", JOptionPane.YES_NO_OPTION,
+						JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+				Logger.println(m);
+				if (m == 0){
+					new BatchDownloadRbyRThread(batchDownloadFileName).start();
+					batchDownloadRbyR.setEnabled(false);
+				}
+			}
+		});
+		batchDownloadRbyR.setEnabled(!Global.batchDownloadRbyRRunOnStartup);
 		// 打开设置面板
 		settingsMenuItem.addActionListener(new ActionListener() {
 			@Override

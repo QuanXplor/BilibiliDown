@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import nicelee.bilibili.annotations.Bilibili;
 import nicelee.bilibili.downloaders.IDownloader;
 import nicelee.bilibili.enums.StatusEnum;
+import nicelee.bilibili.exceptions.BilibiliError;
 import nicelee.bilibili.util.CmdUtil;
 import nicelee.bilibili.util.HttpHeaders;
 import nicelee.bilibili.util.HttpRequestUtil;
@@ -51,6 +52,52 @@ public class FLVDownloader implements IDownloader {
 		return download(url, avId, qn, page, ".flv");
 	}
 	
+	static Pattern pcdnPattern;
+	static Pattern hostPattern;
+	static Pattern urlReplaceWhitelist;
+	static String hostAlt;
+	
+	protected String tryBetterUrl(String url) {
+		url = tryReplaceHost(url);
+		url = tryForceHttp(url);
+		return url;
+	}
+	
+	private String tryReplaceHost(String url) {
+		if(Global.forceReplaceUposHost) {
+			if(hostPattern == null) {
+				hostPattern = Pattern.compile("://[^/]+");
+				// 不能替换 https://xy111x48x218x66xy.mcdn.bilivideo.cn:8082/v1/resource/1597612179-1-30280.m4s
+				// 可以替换 https://xy111x48x218x66xy.mcdn.bilivideo.cn:8082/upgcxcode/35/83/1532588335/1532588335-1-30280.m4s
+				// urlReplaceWhitelist = Pattern.compile("https?://[^/]+/upgcxcode");
+				urlReplaceWhitelist = Pattern.compile(Global.forceReplaceUrlPattern);
+				hostAlt = "://" + Global.altHost;
+			}
+			Matcher mWList = urlReplaceWhitelist.matcher(url);
+			// Logger.println(url);
+			if(mWList.find()) {
+				Matcher m = hostPattern.matcher(url);
+				return m.replaceFirst(hostAlt);
+			}
+		}
+		return url;
+	}
+	
+	private String tryForceHttp(String url) {
+		if(Global.forceHttp) {
+			if(pcdnPattern == null) {
+				pcdnPattern = Pattern.compile("://[^/:]+:\\d+/");
+			}
+			Matcher m = pcdnPattern.matcher(url);
+			if(!m.find()) {
+				// Logger.println("https替换为http");
+				return url.replace("https:/", "http:/");
+			}
+			// Logger.println("检测为PCDN，forceHttp未生效");
+		}
+		return url;
+	}
+	
 	protected boolean download(String url, String avId, int qn, int page, String suffix) {
 		convertingStatus = StatusEnum.NONE;
 		currentTask = 1;
@@ -68,6 +115,7 @@ public class FLVDownloader implements IDownloader {
 			// 从 currentTask 继续开始任务
 			util.init();
 			for (int i = currentTask - 1; i < links.length; i++) {
+				links[i] = tryBetterUrl(links[i]);
 				currentTask = (i + 1);
 				Matcher matcher = numUrl.matcher(links[i]);
 				matcher.find();
@@ -83,13 +131,9 @@ public class FLVDownloader implements IDownloader {
 			// 下载完毕后,进行合并
 			convertingStatus = StatusEnum.PROCESSING;
 			boolean result = CmdUtil.convert(fName + suffix, links.length);
-			if (result) {
-				convertingStatus = StatusEnum.SUCCESS;
-			} else {
-				convertingStatus = StatusEnum.FAIL;
-			}
-			return result;
+			return throwErrorIfNotConvertOk(result, fName);
 		} else {
+			url = tryBetterUrl(url);
 			String fileName = fName + suffix;
 			boolean succ = util.download(url, fileName, header.getBiliWwwFLVHeaders(avId));
 			if (succ) {
@@ -100,6 +144,18 @@ public class FLVDownloader implements IDownloader {
 		}
 	}
 
+	protected boolean throwErrorIfNotConvertOk(boolean ok, String msg) {
+		if (ok) {
+			convertingStatus = StatusEnum.SUCCESS;
+			return true;
+		} else {
+			convertingStatus = StatusEnum.FAIL;
+			if(Global.alertIfFFmpegFail)
+				throw new BilibiliError("如需关闭该警告，请在配置页搜索并修改配置 bilibili.alert.ffmpegFail\n\t转码失败，请检查ffmpeg配置: " + msg);
+			else
+				return false;
+		}
+	}
 	/**
 	 * 返回当前状态
 	 * 

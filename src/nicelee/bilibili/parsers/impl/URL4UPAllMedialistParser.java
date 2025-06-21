@@ -16,7 +16,6 @@ import nicelee.bilibili.model.VideoInfo;
 import nicelee.bilibili.util.HttpCookies;
 import nicelee.bilibili.util.HttpHeaders;
 import nicelee.bilibili.util.Logger;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * 
@@ -32,7 +31,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
  * tid	// 全部 0, 音乐 3...
  *
  */
-@Bilibili(name = "URL4UPAllMedialistParser", weight = 77, ifLoad = "listAll", note = "个人上传的视频列表(Medialist解析方式)")
+@Bilibili(name = "URL4UPAllMedialistParser", weight = 70, ifLoad = "listAll", note = "个人上传的视频列表(Medialist解析方式)")
 public class URL4UPAllMedialistParser extends AbstractPageQueryParser<VideoInfo> {
 	// 针对 https://www.bilibili.com/medialist/play/378034?from=space&business=space&sort_field=play&tid=3
 	private final static Pattern pattern = Pattern
@@ -42,7 +41,7 @@ public class URL4UPAllMedialistParser extends AbstractPageQueryParser<VideoInfo>
 	// 针对 https://space.bilibili.com/378034/video?tid=3&keyword=&order=stow
 	// (keyword必须为空)
 	private final static Pattern pattern2 = Pattern
-			.compile("space\\.bilibili\\.com/([0-9]+)(/video|/search/video\\?|/? *$|\\?)");
+			.compile("space\\.bilibili\\.com/([0-9]+)(/video|/search/video\\?|/? *$|/?\\?)");
 	public final static Pattern patternKeyNotEmpty = Pattern.compile("keyword=[^=&]+");
 	private final static Pattern patternParams2 = Pattern.compile("(tid|order)=([^=&]+)");
 
@@ -142,6 +141,9 @@ public class URL4UPAllMedialistParser extends AbstractPageQueryParser<VideoInfo>
 		try {
 			// 先获取合集信息
 			HashMap<String, String> headers = new HttpHeaders().getCommonHeaders("api.bilibili.com");
+			HashMap<String, String> headersRefer = new HashMap<>(headers);
+			headersRefer.put("Referer", "https://space.bilibili.com/");
+			headersRefer.put("Origin", "https://space.bilibili.com/");
 			if (pageQueryResult.getVideoName() == null) {
 				String url = "https://api.bilibili.com/x/v1/medialist/info?type=1&tid=0&biz_id=" + spaceID;
 				Logger.println(url);
@@ -162,10 +164,10 @@ public class URL4UPAllMedialistParser extends AbstractPageQueryParser<VideoInfo>
 					break;
 				}
 			}
-			String firstOid = position2Oid((page - 1) * pageSize + 1, headers, sortFieldParam);
+			String firstOid = position2Oid((page - 1) * pageSize + 1, headersRefer, sortFieldParam);
 			if(firstOid.equals("end"))
 				return pageQueryResult;
-			String lastOidPlus1 = position2Oid(page * pageSize + 1, headers, sortFieldParam);
+			String lastOidPlus1 = position2Oid(page * pageSize + 1, headersRefer, sortFieldParam);
 			
 			// 根据oid查询分页的详细信息
 			String urlFormat = "https://api.bilibili.com/x/v2/medialist/resource/list?type=1&oid=%s&otype=2&biz_id=%s&bvid=&with_current=%s&mobi_app=web&ps=%d&direction=false&sort_field=%d&tid=%s&desc=true";
@@ -267,6 +269,7 @@ public class URL4UPAllMedialistParser extends AbstractPageQueryParser<VideoInfo>
 		// String urlFormat = "https://api.bilibili.com/x/space/arc/search?mid=%s&ps=%d&tid=%s&pn=%d&keyword=&order=%s&jsonp=jsonp";
 		String urlFormat = "https://api.bilibili.com/x/space/wbi/arc/search?mid=%s&ps=%d&tid=%s&special_type=&pn=%d&keyword=&order=%s&platform=web"; // &web_location=1550101&order_avoided=true
 		String url = String.format(urlFormat, spaceID, 1, params.get("tid"), pageNumber, sortFieldParam);
+		url += API.genDmImgParams();
 		url = API.encWbi(url);
 		String json = util.getContent(url, headers, HttpCookies.globalCookiesWithFingerprint());
 		Logger.println(url);
@@ -284,6 +287,6 @@ public class URL4UPAllMedialistParser extends AbstractPageQueryParser<VideoInfo>
 	
 	@Override
 	protected boolean query(int page, int min, int max, Object... obj) {
-		throw new NotImplementedException();
+		return false;
 	}
 }
