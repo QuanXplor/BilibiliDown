@@ -24,6 +24,9 @@ public class Peertube {
     private boolean printLog=true;
 
     public Peertube(String apiUrl,  String username, String password, String channel) {
+        if (apiUrl != null && apiUrl.endsWith("/") && apiUrl.lastIndexOf("/") != apiUrl.length() - 1) {
+            apiUrl=apiUrl.substring(0, apiUrl.length() - 1);
+        }
         this.apiUrl = apiUrl;
         this.password = password;
         this.username = username;
@@ -103,21 +106,27 @@ public class Peertube {
 
     public String acquireChannel(){
         // https://docs.joinpeertube.org/api-rest-reference.html#tag/Accounts/paths/~1api~1v1~1accounts~1%7Bname%7D~1video-playlists/get
-        String url= apiUrl +"/api/v1/accounts/"+ username +"/video-channels";
-        String query="search="+ channel;
-        String content = http.getContent(url+"?"+query, null);
-        JSONObject jsonObject=new JSONObject(content);
-        if(jsonObject.getInt("total")>0){
-            JSONArray data = jsonObject.getJSONArray("data");
-            String channelId = IntStream.range(0, data.length())
-                    .filter(o -> channel.equals(data.getJSONObject(o).optString("displayName")))
-                    .mapToObj(o -> data.getJSONObject(o).optString("id")).findFirst().orElse(null);
-            if(channelId !=null && channelId.length()>0){
-                return channelId;
+        String content="";
+        String errorMsg = "Peertube acquire channel failed.";
+        try {
+            String url = apiUrl + "/api/v1/accounts/" + username + "/video-channels";
+            String query = "search=" + channel;
+            content = http.getContent(url + "?" + query, null);
+            JSONObject jsonObject = new JSONObject(content);
+            if (jsonObject.getInt("total") > 0) {
+                JSONArray data = jsonObject.getJSONArray("data");
+                String channelId = IntStream.range(0, data.length())
+                        .filter(o -> channel.equals(data.getJSONObject(o).optString("displayName")))
+                        .mapToObj(o -> data.getJSONObject(o).optString("id")).findFirst().orElse(null);
+                if (channelId != null && channelId.length() > 0) {
+                    return channelId;
+                }
             }
+        }catch (Exception e) {
+            Logger.printf("Peertube acquire channel failed. Resp content : \n%s", content);
+            throw new RuntimeException(errorMsg,e);
         }
-        Logger.printf("Peertube acquire channel failed. Resp content : \n%s",content);
-        throw new RuntimeException("Peertube acquire channel failed.");
+        throw new RuntimeException(errorMsg);
     }
 
     public void createComment(String id,String text){

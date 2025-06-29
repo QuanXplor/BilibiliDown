@@ -39,7 +39,6 @@ public class PeertubeUploaderThread extends Thread {
                         try {
                             String tmpLine = raf.readLine();
                             String line = new String(tmpLine.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
-                            line=line.replaceAll("\\\\n","\n").replaceAll("\\\\r","\r");
                             List<String>  split = readSeparator(new ArrayList<>(3), line, 0, 3);
                             if ("0".equals(split.get(0))) {
                                 INeedAV iNeedAV = new INeedAV();

@@ -92,7 +92,7 @@ public class PeertubeRecordThread extends Thread {
             Path savePath=Paths.get(Global.savePath);
             Path fileP=Paths.get(filePath);
             Path relativize = savePath.relativize(fileP);
-            String r = relativize.toString().replaceAll("\n","\\\\n").replaceAll("\r","\\\\r");
+            String r = relativize.toString().replace("\\", "\\\\");
             String content = "0,"+bvId + "," + r + System.lineSeparator();
             Files.write(Paths.get(CONFIG_UPLOADER_CONFIG)
                     , content.getBytes(StandardCharsets.UTF_8)
@@ -104,29 +104,7 @@ public class PeertubeRecordThread extends Thread {
         return false;
     }
 
-    public static void main(String[] args) throws IOException {
-//        String child="E:\\project\\source\\tmp\\BilibiliDown\\workspace\\download\\abc\\iStoreOS如何设置NFS共享？附mac、windows、kodi客户端使用方法-p01-80.mp4";
-//        String partent="E:\\project\\source\\tmp\\BilibiliDown\\workspace\\download";
-//        Path childP = Paths.get(child);
-//        Path parentP=Paths.get(partent);
-//        Path relativize = parentP.relativize(childP);
-//        System.out.println(relativize.toString());
-//        File file=new File("E:\\project\\source\\tmp\\BilibiliDown\\workspace\\download\\123.txt");
-//        boolean b = file.renameTo(new File("E:\\project\\source\\tmp\\BilibiliDown\\workspace\\download\\123\n456.txt"));
-//        System.out.println(b);
-//        String s = "123123\n456466".replaceAll("\n","\\\\n");
-//        String first = "E:\\project\\source\\tmp\\BilibiliDown\\workspace\\download\\123.txt";
-////        Files.write(Paths.get(first), s.getBytes("utf-8"),StandardOpenOption.APPEND);
-//        byte[] bytes = Files.readAllBytes(Paths.get(first));
-//        String x = new String(bytes, "utf-8");
-//        x=x.replaceAll("\\\\n","\n");
-//        System.out.println(x);
-//        JSONObject jsonObject=new JSONObject();
-//        jsonObject.put("key",x);
-//        System.out.println(jsonObject.toString());
-        PeertubeRecordThread peertubeRecordThread = new PeertubeRecordThread();
-        peertubeRecordThread.appendInfo("123","123");
-    }
+
 
 
 }
