@@ -103,8 +103,11 @@ public class DownloadRunnableInternal implements Runnable {
 				if (Global.thumbUpAfterDownloaded && Global.isLogin && avid.startsWith("BV")) {
 					API.like(avid);
 				}
-				CmdUtil.convertOrAppendCmdToRenameBat(avid_qn, formattedTitle, page);
-			}
+				synchronized (this.downPanel.downloadPath) {
+					String path = CmdUtil.convertOrAppendCmdToRenameBat(avid_qn, formattedTitle, page);
+					this.downPanel.downloadPath[0]=path;
+					this.downPanel.downloadPath.notifyAll();
+				}			}
 		} catch (BilibiliError e) {
 			JOptionPaneManager.alertErrMsgWithNewThread("发生了预料之外的错误", ResourcesUtil.detailsOfException(e));
 		} catch (Exception e) {

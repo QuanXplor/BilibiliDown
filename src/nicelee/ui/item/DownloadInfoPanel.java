@@ -43,6 +43,7 @@ public class DownloadInfoPanel extends JPanel implements ActionListener {
 	public String formattedTitle;
 	public boolean stopOnQueue = false;
 	int failCnt = 0;
+	public final String[] downloadPath=new String[1];
 
 	public int getFailCnt() {
 		return failCnt;

@@ -33,7 +33,7 @@ public class PeertubeUploaderThread extends Thread {
         Long skip=0L;
         while(true){
             try{
-                try(RandomAccessFile raf=new RandomAccessFile(Paths.get("config/uploader.config").toFile(),"rw")){
+                try(RandomAccessFile raf=new RandomAccessFile(Paths.get(PeertubeRecordThread.CONFIG_UPLOADER_CONFIG).toFile(),"rw")){
                     raf.seek(skip);
                     while(raf.getFilePointer()<raf.length()){
                         try {

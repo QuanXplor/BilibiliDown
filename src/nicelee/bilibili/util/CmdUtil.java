@@ -354,13 +354,13 @@ public class CmdUtil {
 	public synchronized static String convertOrAppendCmdToRenameBat(final String avid_q, final String formattedTitle,
 			int page) {
 		File originFile = getFileByAvQnP(avid_q, page);
+		String resultFilePath=originFile.getAbsolutePath();
 		try {
 			// 获取已完成文件
 			String fName = originFile.getName();
 			Matcher suffixM = suffixPattern.matcher(fName);
 			suffixM.find();
 			String tail = suffixM.group();
-			String resultFilePath=originFile.getAbsolutePath()
 
 			if (Global.doRenameAfterComplete) {
 				File file = new File(Global.savePath, formattedTitle + tail);

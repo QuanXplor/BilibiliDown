@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @date: 2023-12-30 18:36
  */
 public class PeertubeRecordThread extends Thread {
-    private static final String CONFIG_UPLOADER_CONFIG = "config/uploader.config";
+    public static final String CONFIG_UPLOADER_CONFIG = "config/uploader.config";
     private ConcurrentHashMap<DownloadInfoPanel, IDownloader> downloadList;
     private Set<DownloadInfoPanel> successSet = new HashSet<>();
     private boolean run=true;

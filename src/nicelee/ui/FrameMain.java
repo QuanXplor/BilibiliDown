@@ -25,8 +25,7 @@ import nicelee.bilibili.util.RepoUtil;
 import nicelee.bilibili.util.ResourcesUtil;
 import nicelee.bilibili.util.SysUtil;
 import nicelee.ui.item.MJTitleBar;
-import nicelee.ui.thread.BatchDownloadRbyRThread;
-import nicelee.ui.thread.DownloadRunnable;
+import nicelee.ui.thread.*;
 
 import static nicelee.ui.Global.batchDownloadConfigTimerSwitch;
 
