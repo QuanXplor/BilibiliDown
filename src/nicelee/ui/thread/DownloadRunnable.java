@@ -75,6 +75,7 @@ public class DownloadRunnable implements Callable<DownloadInfoPanel>,Runnable  {
 			}
 			BatchDownloadRbyRThread.taskFail(clip, ResourcesUtil.detailsOfException(e));
 		} catch (Exception e) {
+			e.printStackTrace();
 			BatchDownloadRbyRThread.taskFail(clip, ResourcesUtil.detailsOfException(e));
 		}
 		return null;

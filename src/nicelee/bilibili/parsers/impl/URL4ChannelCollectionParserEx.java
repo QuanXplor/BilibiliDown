@@ -22,6 +22,7 @@ import nicelee.bilibili.util.Logger;
  * 过时，网页不再出现这种链接 https://space.bilibili.com/593987248/channel/collectiondetail?sid=508765
  * https://space.bilibili.com/{spaceID}/favlist?fid=405855&ftype=collect&ctype=21
  * https://space.bilibili.com/3493090176272742/lists/2729326?type=season
+ * https://space.bilibili.com/397230176/lists?sid=967
  * 
  *		若是不从网页里面扣，可试一试下面两个api，以后有时间再做
  *		- https://api.bilibili.com/x/space/fav/season/list?season_id=405855&pn=2&ps=20&jsonp=jsonp
@@ -33,8 +34,8 @@ public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<Video
 	private final static Pattern pattern = Pattern
 			.compile("space\\.bilibili\\.com/[0-9]+/channel/collectiondetail\\?sid=([0-9]+)");
 	private final static Pattern pattern2 = Pattern.compile("space\\.bilibili\\.com/[0-9]+/favlist\\?.*fid=([0-9]+).*ftype=collect");
-	private final static Pattern pattern3 = Pattern
-			.compile("space\\.bilibili\\.com/[0-9]+/lists/([0-9]+)\\?type=season");
+	private final static Pattern pattern3 = Pattern.compile("space\\.bilibili\\.com/[0-9]+/lists/([0-9]+)\\?type=season");
+	private final static Pattern pattern4 = Pattern.compile("space\\.bilibili\\.com/[0-9]+/lists\\?sid=([0-9]+)");
 	private String sid;
 
 	public URL4ChannelCollectionParserEx(Object... obj) {
@@ -58,6 +59,12 @@ public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<Video
 		matcher = pattern3.matcher(input);
 		if (matcher.find()) {
 			System.out.println("UP 某合集的视频解析(爬html版) ...pattern3");
+			sid = matcher.group(1);
+			return true;
+		}
+		matcher = pattern4.matcher(input);
+		if (matcher.find()) {
+			System.out.println("UP 某合集的视频解析(爬html版) ...pattern4");
 			sid = matcher.group(1);
 			return true;
 		}
@@ -146,6 +153,7 @@ public class URL4ChannelCollectionParserEx extends AbstractPageQueryParser<Video
 					clip.setPicPreview(arc.getString("pic"));
 					clip.setListName(jData.getString("name").replaceAll("[/\\\\]", "_"));
 					clip.setListOwnerName(pageQueryResult.getAuthor().replaceAll("[/\\\\]", "_"));
+					clip.setListOwnerId(pageQueryResult.getAuthorId());
 					clip.setUpName(pageQueryResult.getAuthor());
 					clip.setUpId(pageQueryResult.getAuthorId());
 					clip.setAvTitle(episode.getString("title"));

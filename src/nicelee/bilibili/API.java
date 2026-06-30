@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 
 import org.json.JSONObject;
 
-import nicelee.bilibili.util.ConfigUtil;
 import nicelee.bilibili.util.Encrypt;
 import nicelee.bilibili.util.HttpCookies;
 import nicelee.bilibili.util.HttpHeaders;
@@ -35,11 +34,13 @@ public class API {
 	public static void main(String[] args) {
 //		List<HttpCookie> cookies = HttpCookies
 //				.convertCookies("[DedeUserID=xxx; DedeUserID__ckMd5=xxx; SESSDATA=xxx; bili_jct=xxx; bfe_id=xxx...]");
-//		HttpCookies.setGlobalCookies(cookies);
-		ConfigUtil.initConfigs();
+		INeedLogin inl = new INeedLogin();
+		String cookiesStr = inl.readCookies();
+		HttpCookies.setGlobalCookies(HttpCookies.convertCookies(cookiesStr));
+		API.like(666);
 //		API.genNewFingerprint();
 //		API.getFingerprint();
-		API.uploadFingerprint();
+//		API.uploadFingerprint();
 	}
 
 	/**
@@ -47,36 +48,38 @@ public class API {
 	 */
 	public static boolean like(String BVid) {
 		long avIdNum = ConvertUtil.Bv2Av(BVid);
-		return like(avIdNum);
+		return like(BVid, avIdNum);
 	}
 
 	/**
 	 * 给视频点赞(前提是已经登录)
 	 */
 	public static boolean like(long avIdNum) {
-		/**
-		 * 是否已经点赞
-		 * https://api.bilibili.com/x/web-interface/archive/has/like?aid=666
-		 * {"code":0,"message":"0","ttl":1,"data":1} 已经点赞
-		 * {"code":0,"message":"0","ttl":1,"data":0} 没有点赞
-		 */
+		String BVid = ConvertUtil.Av2Bv(avIdNum);
+		return like(BVid, avIdNum);
+	}
+	
+	private static boolean like(String BVid, long avIdNum) {
 		HttpRequestUtil util = new HttpRequestUtil();
-		String url_query = "https://api.bilibili.com/x/web-interface/archive/has/like?aid=" + avIdNum;
-		HashMap<String, String> headers = new HttpHeaders().getActionHeaders("av" + avIdNum);
-		String result_query = util.getContent(url_query, headers, HttpCookies.getGlobalCookies());
+		String url_query = String.format("https://api.bilibili.com/x/web-interface/archive/relation?aid=%d&bvid=%s", avIdNum, BVid);
+		HashMap<String, String> headers = new HttpHeaders().getActionHeaders(BVid);
+		String result_query = util.getContent(url_query, headers, HttpCookies.globalCookiesWithFingerprint());
 		Logger.println(result_query);
-		if (result_query.startsWith("{\"code\":0,\"message\":\"0\",\"ttl\":1,\"data\":0}")) {
+		boolean isLiked = new JSONObject(result_query).getJSONObject("data").optBoolean("like");
+		if (!isLiked) {
 			String url = "https://api.bilibili.com/x/web-interface/archive/like";
-			// like 1 点赞 2 取消
-			String param = String.format("aid=%d&like=1&csrf=%s", avIdNum, HttpCookies.getCsrf());
-			String result = util.postContent(url, headers, param, HttpCookies.getGlobalCookies());
+			String param = new StringBuilder("aid=").append(avIdNum)
+					.append("&like=1&from_spmid=333.1387.homepage.video_card.click&spmid=333.788.0.0&statistics=%7B%22appId%22%3A100%2C%22platform%22%3A5%7D&eab_x=1&ramval=20&source=web_normal&ga=1&csrf=")
+					.append(HttpCookies.getCsrf()).toString();
+			String result = util.postContent(url, headers, param, HttpCookies.globalCookiesWithFingerprint());
 			// {"code":-101,"message":"账号未登录","ttl":1}
 			// {"code":65006,"message":"已赞过","ttl":1}
 			// {"code":0,"message":"0","ttl":1}
 			Logger.println(result);
 			if (result.startsWith("{\"code\":0"))
 				return true;
-		}
+		} else
+			Logger.println("已经点赞 " + BVid);
 		return false;
 	}
 

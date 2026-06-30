@@ -381,9 +381,10 @@ public abstract class AbstractBaseParser implements IInputParser {
 					// 下面这个API清晰度没法选择，编码方式没法选择，固定返回1080P? mp4
 					// https://api.bilibili.com/x/player/wbi/playurl?avid=857672756&bvid=BV1HV4y1p7ce&cid=1084157816&qn=80&fnver=0&fnval=4048&fourk=1
 					"https://api.bilibili.com/x/player/wbi/playurl?cid=%s&bvid=%s&qn=%d":
-					"https://api.bilibili.com/x/player/wbi/playurl?cid=%s&bvid=%s&qn=%d&type=&otype=json&fnver=0&fnval=%s&fourk=1";
+					"https://api.bilibili.com/x/player/wbi/playurl?cid=%s&bvid=%s&qn=%d&type=&otype=json&fnver=0&fnval=%s&fourk=1&gaia_source=&from_client=BROWSER&is_main_page=true&need_fragment=false&isGaiaAvoided=false&client_attr=0&session=&voice_balance=1&web_location=1315873"; // &version_name=4.9.77&app_id=100
 			url += trylookTail;
 			url = String.format(url, cid, bvId, qn, fnval);
+			url += API.genDmImgParams();
 			url = API.encWbi(url);
 			Logger.println(url);
 //			List cookie = downloadFormat == 2 ? null : HttpCookies.globalCookiesWithFingerprint();

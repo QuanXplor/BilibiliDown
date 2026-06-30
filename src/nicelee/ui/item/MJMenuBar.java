@@ -417,7 +417,8 @@ public class MJMenuBar extends JMenuBar {
 						writer.append(Integer.toString(c.getRemark()));
 						writer.append(attrSep);
 						writer.append(Integer.toString(dp.getQn()));
-						
+						writer.append(attrSep);
+						writer.append(c.getListOwnerId());
 						writer.append(taskSep);
 						writer.flush();
 					}
@@ -467,6 +468,9 @@ public class MJMenuBar extends JMenuBar {
 						c.setRemark(Integer.parseInt(attrs[11]));
 						
 						int qn = Integer.parseInt(attrs[12]);
+						if(attrs.length >= 14 && !"null".equals(attrs[13])) {
+							c.setListOwnerId(attrs[13]);
+						}
 						Logger.println(c.toString());
 						Logger.println(qn);
 						DownloadRunnable downThread = new DownloadRunnable(null, c, qn);
